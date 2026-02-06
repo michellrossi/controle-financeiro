@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Transaction, TransactionType, TransactionStatus, FilterState } from '../types';
 import { formatCurrency } from '../services/storage';
 import { format } from 'date-fns';
@@ -11,13 +11,14 @@ interface TransactionsProps {
   onEdit: (t: Transaction) => void;
   onDelete: (id: string) => void;
   onToggleStatus: (id: string) => void;
+  onSortChange: (field: 'date' | 'amount') => void;
 }
 
-export const Transactions: React.FC<TransactionsProps> = ({ transactions, filter, onEdit, onDelete, onToggleStatus }) => {
-  const { month, year } = filter;
-  const [localSortBy, setLocalSortBy] = useState<'date' | 'amount'>('date');
+export const Transactions: React.FC<TransactionsProps> = ({ 
+  transactions, filter, onEdit, onDelete, onToggleStatus, onSortChange 
+}) => {
+  const { month, year, sortBy, sortOrder } = filter;
 
-  // Local Sort Handler
   const filteredTransactions = useMemo(() => {
     return transactions
       .filter(t => {
@@ -25,12 +26,11 @@ export const Transactions: React.FC<TransactionsProps> = ({ transactions, filter
         return d.getMonth() === month && d.getFullYear() === year;
       })
       .sort((a, b) => {
-        let valA = localSortBy === 'date' ? new Date(a.date).getTime() : a.amount;
-        let valB = localSortBy === 'date' ? new Date(b.date).getTime() : b.amount;
-        // Default sort descending for date, descending for amount
-        return valB - valA;
+        let valA = sortBy === 'date' ? new Date(a.date).getTime() : a.amount;
+        let valB = sortBy === 'date' ? new Date(b.date).getTime() : b.amount;
+        return sortOrder === 'asc' ? valA - valB : valB - valA;
       });
-  }, [transactions, month, year, localSortBy]);
+  }, [transactions, month, year, sortBy, sortOrder]);
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -39,16 +39,16 @@ export const Transactions: React.FC<TransactionsProps> = ({ transactions, filter
       <div className="flex justify-end mb-2">
          <div className="flex bg-white p-1 rounded-xl border border-slate-100 shadow-sm">
            <button 
-             onClick={() => setLocalSortBy('date')}
-             className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${localSortBy === 'date' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}
+             onClick={() => onSortChange('date')}
+             className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${sortBy === 'date' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}
            >
-             <Calendar size={14} /> Data ↓
+             <Calendar size={14} /> Data {sortBy === 'date' && (sortOrder === 'asc' ? '↑' : '↓')}
            </button>
            <button 
-             onClick={() => setLocalSortBy('amount')}
-             className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${localSortBy === 'amount' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}
+             onClick={() => onSortChange('amount')}
+             className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${sortBy === 'amount' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}
            >
-             <DollarSign size={14} /> Valor
+             <DollarSign size={14} /> Valor {sortBy === 'amount' && (sortOrder === 'asc' ? '↑' : '↓')}
            </button>
          </div>
       </div>
@@ -62,7 +62,7 @@ export const Transactions: React.FC<TransactionsProps> = ({ transactions, filter
              <p className="text-slate-500 font-medium">Nenhuma transação neste período.</p>
            </div>
         ) : filteredTransactions.map((t) => (
-          <div key={t.id} className="bg-white rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between shadow-sm border border-slate-100 hover:shadow-md transition-all gap-4">
+          <div key={t.id} className="bg-white rounded-2xl p-4 flex flex-row items-center justify-between shadow-sm border border-slate-100 hover:shadow-md transition-all gap-4">
              
              {/* Left Section: Icon & Details */}
              <div className="flex items-center gap-4">
@@ -87,21 +87,21 @@ export const Transactions: React.FC<TransactionsProps> = ({ transactions, filter
                 </div>
              </div>
 
-             {/* Right Section: Amount & Actions */}
-             <div className="flex items-center justify-between md:justify-end gap-4 md:gap-8 border-t md:border-t-0 pt-4 md:pt-0 border-slate-50">
-                <span className={`text-lg font-bold whitespace-nowrap ${
-                  t.type === TransactionType.INCOME ? 'text-emerald-500' : 'text-rose-500'
+             {/* Right Section: Amount & Actions (Vertical Stack) */}
+             <div className="flex flex-col items-end gap-2">
+                <span className={`text-xl font-bold whitespace-nowrap ${
+                  t.type === TransactionType.INCOME ? 'text-emerald-500' : 'text-slate-700'
                 }`}>
                   {t.type === TransactionType.INCOME ? '+ ' : ''} {formatCurrency(t.amount)}
                 </span>
                 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                    <button 
                      onClick={() => onToggleStatus(t.id)}
-                     className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider min-w-[90px] text-center transition-colors ${
+                     className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors ${
                        t.status === TransactionStatus.COMPLETED 
-                         ? 'bg-emerald-100 text-emerald-600' 
-                         : 'bg-blue-50 text-blue-500'
+                         ? 'bg-blue-100 text-blue-600' 
+                         : 'bg-indigo-100 text-indigo-600'
                      }`}
                    >
                       {t.status === TransactionStatus.COMPLETED 
@@ -110,14 +110,12 @@ export const Transactions: React.FC<TransactionsProps> = ({ transactions, filter
                       }
                    </button>
                    
-                   <div className="flex items-center gap-1">
-                      <button onClick={() => onEdit(t)} className="p-2 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors">
-                        <Edit2 size={16} />
-                      </button>
-                      <button onClick={() => onDelete(t.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors">
-                        <Trash2 size={16} />
-                      </button>
-                   </div>
+                   <button onClick={() => onEdit(t)} className="text-slate-400 hover:text-blue-500 transition-colors">
+                     <Edit2 size={16} />
+                   </button>
+                   <button onClick={() => onDelete(t.id)} className="text-slate-400 hover:text-red-500 transition-colors">
+                     <Trash2 size={16} />
+                   </button>
                 </div>
              </div>
           </div>

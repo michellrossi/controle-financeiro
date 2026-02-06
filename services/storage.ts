@@ -1,115 +1,48 @@
 import { Transaction, CreditCard, TransactionType, TransactionStatus, User, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from '../types';
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+import { 
+  getAuth, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut, 
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile,
+  User as FirebaseUser
+} from "firebase/auth";
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  query, 
+  where, 
+  getDocs,
+  enableIndexedDbPersistence
+} from "firebase/firestore";
 
-const STORAGE_KEY_DATA = 'financas2026_data';
-const STORAGE_KEY_USER = 'financas2026_user';
-
-interface AppData {
-  transactions: Transaction[];
-  cards: CreditCard[];
-}
-
-// Seed Data for Demo
-const INITIAL_CARDS: CreditCard[] = [
-  { id: 'c1', name: 'Nubank', limit: 8000, closingDay: 5, dueDay: 12, color: 'bg-purple-600' },
-  { id: 'c2', name: 'XP Infinite', limit: 25000, closingDay: 20, dueDay: 27, color: 'bg-slate-800' },
-];
-
-const INITIAL_TRANSACTIONS: Transaction[] = [
-  { id: 't1', description: 'Salário Mensal', amount: 8500, date: new Date().toISOString(), type: TransactionType.INCOME, category: 'Salário', status: TransactionStatus.COMPLETED },
-  { id: 't2', description: 'Aluguel', amount: 2200, date: new Date().toISOString(), type: TransactionType.EXPENSE, category: 'Apê', status: TransactionStatus.PENDING },
-  { id: 't3', description: 'Netflix', amount: 55.90, date: new Date().toISOString(), type: TransactionType.CARD_EXPENSE, category: 'Assinaturas', status: TransactionStatus.COMPLETED, cardId: 'c1' },
-];
-
-export const StorageService = {
-  // --- Auth & User ---
-  getUser: (): User | null => {
-    const u = localStorage.getItem(STORAGE_KEY_USER);
-    return u ? JSON.parse(u) : null;
-  },
-
-  login: (name: string, email: string): User => {
-    const user: User = { id: 'u1', name, email, avatar: `https://ui-avatars.com/api/?name=${name}&background=0D8ABC&color=fff` };
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
-    
-    // Initialize data if empty
-    if (!localStorage.getItem(STORAGE_KEY_DATA)) {
-      const data: AppData = { transactions: INITIAL_TRANSACTIONS, cards: INITIAL_CARDS };
-      localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(data));
-    }
-    return user;
-  },
-
-  logout: () => {
-    localStorage.removeItem(STORAGE_KEY_USER);
-  },
-
-  // --- Data Access ---
-  getData: (): AppData => {
-    const d = localStorage.getItem(STORAGE_KEY_DATA);
-    return d ? JSON.parse(d) : { transactions: [], cards: [] };
-  },
-
-  saveData: (data: AppData) => {
-    localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(data));
-  },
-
-  // --- Transactions ---
-  addTransaction: (t: Transaction) => {
-    const data = StorageService.getData();
-    data.transactions.push(t);
-    StorageService.saveData(data);
-  },
-
-  updateTransaction: (updated: Transaction) => {
-    const data = StorageService.getData();
-    data.transactions = data.transactions.map(t => t.id === updated.id ? updated : t);
-    StorageService.saveData(data);
-  },
-
-  deleteTransaction: (id: string) => {
-    const data = StorageService.getData();
-    data.transactions = data.transactions.filter(t => t.id !== id);
-    StorageService.saveData(data);
-  },
-
-  toggleStatus: (id: string) => {
-    const data = StorageService.getData();
-    const t = data.transactions.find(tx => tx.id === id);
-    if (t) {
-      if (t.status === TransactionStatus.COMPLETED) t.status = TransactionStatus.PENDING;
-      else t.status = TransactionStatus.COMPLETED;
-      StorageService.saveData(data);
-    }
-  },
-
-  // --- Cards ---
-  getCards: (): CreditCard[] => {
-    return StorageService.getData().cards;
-  },
-
-  addCard: (card: CreditCard) => {
-    const data = StorageService.getData();
-    data.cards.push(card);
-    StorageService.saveData(data);
-  },
-
-  updateCard: (updated: CreditCard) => {
-    const data = StorageService.getData();
-    data.cards = data.cards.map(c => c.id === updated.id ? updated : c);
-    StorageService.saveData(data);
-  },
-
-  deleteCard: (id: string) => {
-    const data = StorageService.getData();
-    data.cards = data.cards.filter(c => c.id !== id);
-    // Optional: Delete associated transactions or keep them? Keeping for now but removing cardId linkage could be safer.
-    // For simplicity in this demo, we just remove the card.
-    StorageService.saveData(data);
-  }
+// Firebase Configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyC_-G-btdRLcjdE--seBNVS28Yvk-_ecI0",
+  authDomain: "app-financeiro-2026.firebaseapp.com",
+  projectId: "app-financeiro-2026",
+  storageBucket: "app-financeiro-2026.firebasestorage.app",
+  messagingSenderId: "430504885966",
+  appId: "1:430504885966:web:a6142506f5c41ff9175a9f",
+  measurementId: "G-TR9F85VDRN"
 };
 
-// --- Logic Helpers ---
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
+// Helpers
 export const formatCurrency = (val: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 };
@@ -117,19 +50,22 @@ export const formatCurrency = (val: number) => {
 export const getInvoiceMonth = (date: Date, closingDay: number): Date => {
   const d = new Date(date);
   if (d.getDate() > closingDay) {
-    // Moves to next month
     d.setMonth(d.getMonth() + 1);
   }
   return d;
 };
 
-// Generates an array of transaction objects if installments > 1
-export const generateInstallments = (baseTransaction: Transaction, totalInstallments: number): Transaction[] => {
+export const generateInstallments = (baseTransaction: Transaction, totalInstallments: number, amountType: 'total' | 'installment' = 'installment'): Transaction[] => {
   if (totalInstallments <= 1) return [baseTransaction];
 
   const transactions: Transaction[] = [];
   const groupId = crypto.randomUUID();
   const baseDate = new Date(baseTransaction.date);
+
+  // Calculate amount per installment
+  const installmentValue = amountType === 'total' 
+    ? baseTransaction.amount / totalInstallments 
+    : baseTransaction.amount;
 
   for (let i = 0; i < totalInstallments; i++) {
     const newDate = new Date(baseDate);
@@ -137,7 +73,8 @@ export const generateInstallments = (baseTransaction: Transaction, totalInstallm
 
     transactions.push({
       ...baseTransaction,
-      id: crypto.randomUUID(),
+      id: crypto.randomUUID(), // Temp ID, will be replaced by Firestore
+      amount: parseFloat(installmentValue.toFixed(2)),
       date: newDate.toISOString(),
       installments: {
         current: i + 1,
@@ -147,4 +84,95 @@ export const generateInstallments = (baseTransaction: Transaction, totalInstallm
     });
   }
   return transactions;
+};
+
+// Async Service Layer
+export const StorageService = {
+  // --- Auth ---
+  authInstance: auth,
+  
+  observeAuth: (callback: (user: User | null) => void) => {
+    return onAuthStateChanged(auth, (fbUser) => {
+      if (fbUser) {
+        callback({
+          id: fbUser.uid,
+          name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Usuário',
+          email: fbUser.email || '',
+          avatar: fbUser.photoURL || `https://ui-avatars.com/api/?name=${fbUser.displayName || 'U'}&background=10B981&color=fff`
+        });
+      } else {
+        callback(null);
+      }
+    });
+  },
+
+  loginGoogle: async (): Promise<void> => {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+  },
+
+  loginEmail: async (email: string, pass: string) => {
+    await signInWithEmailAndPassword(auth, email, pass);
+  },
+
+  registerEmail: async (email: string, pass: string, name: string) => {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    if (cred.user) {
+      await updateProfile(cred.user, { displayName: name });
+    }
+  },
+
+  logout: async () => {
+    await signOut(auth);
+  },
+
+  // --- Transactions ---
+  getTransactions: async (userId: string): Promise<Transaction[]> => {
+    const q = query(collection(db, "transactions"), where("userId", "==", userId));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+  },
+
+  addTransaction: async (userId: string, t: Transaction) => {
+    const { id, ...data } = t; // Remove temp ID
+    await addDoc(collection(db, "transactions"), { ...data, userId });
+  },
+
+  updateTransaction: async (t: Transaction) => {
+    const { id, ...data } = t;
+    const ref = doc(db, "transactions", id);
+    await updateDoc(ref, data);
+  },
+
+  deleteTransaction: async (id: string) => {
+    await deleteDoc(doc(db, "transactions", id));
+  },
+
+  toggleStatus: async (t: Transaction) => {
+    const newStatus = t.status === TransactionStatus.COMPLETED ? TransactionStatus.PENDING : TransactionStatus.COMPLETED;
+    const ref = doc(db, "transactions", t.id);
+    await updateDoc(ref, { status: newStatus });
+  },
+
+  // --- Cards ---
+  getCards: async (userId: string): Promise<CreditCard[]> => {
+    const q = query(collection(db, "cards"), where("userId", "==", userId));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CreditCard));
+  },
+
+  addCard: async (userId: string, c: CreditCard) => {
+    const { id, ...data } = c;
+    await addDoc(collection(db, "cards"), { ...data, userId });
+  },
+
+  updateCard: async (c: CreditCard) => {
+    const { id, ...data } = c;
+    const ref = doc(db, "cards", id);
+    await updateDoc(ref, data);
+  },
+
+  deleteCard: async (id: string) => {
+    await deleteDoc(doc(db, "cards", id));
+  }
 };

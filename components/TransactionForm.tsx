@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Transaction, TransactionType, TransactionStatus, INCOME_CATEGORIES, EXPENSE_CATEGORIES, CreditCard } from '../types';
-import { Calendar, DollarSign, Type, Layers } from 'lucide-react';
+import { DollarSign, Type, Layers } from 'lucide-react';
 import { Modal } from './ui/Modal';
 
 interface TransactionFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (t: Transaction, installments: number) => void;
+  onSubmit: (t: Transaction, installments: number, amountType: 'total' | 'installment') => void;
   initialData?: Transaction | null;
   cards: CreditCard[];
 }
@@ -19,6 +19,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
   const [category, setCategory] = useState('');
   const [cardId, setCardId] = useState('');
   const [installments, setInstallments] = useState(1);
+  const [amountType, setAmountType] = useState<'total' | 'installment'>('installment');
   const [status, setStatus] = useState<TransactionStatus>(TransactionStatus.COMPLETED);
 
   useEffect(() => {
@@ -31,6 +32,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
       setCardId(initialData.cardId || '');
       setStatus(initialData.status);
       setInstallments(1);
+      setAmountType('installment');
     } else {
       resetForm();
     }
@@ -45,6 +47,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
     setCardId(cards[0]?.id || '');
     setStatus(TransactionStatus.COMPLETED);
     setInstallments(1);
+    setAmountType('installment');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -62,7 +65,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
       cardId: type === TransactionType.CARD_EXPENSE ? cardId : undefined,
     };
 
-    onSubmit(newTransaction, installments);
+    onSubmit(newTransaction, installments, amountType);
     onClose();
   };
 
@@ -92,49 +95,48 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
             ))}
           </div>
 
-          {/* Description & Amount */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">Descrição</label>
+          {/* Description */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Descrição</label>
+            <div className="relative">
+              <Type className="absolute left-3 top-3 text-slate-400" size={18} />
+              <input
+                type="text"
+                required
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
+                placeholder="Ex: Supermercado"
+              />
+            </div>
+          </div>
+
+          {/* Amount & Date */}
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Valor</label>
               <div className="relative">
-                <Type className="absolute left-3 top-3 text-slate-400" size={18} />
+                <DollarSign className="absolute left-3 top-3 text-slate-400" size={18} />
                 <input
-                  type="text"
+                  type="number"
+                  step="0.01"
                   required
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
-                  placeholder="Ex: Supermercado"
+                  placeholder="0,00"
                 />
               </div>
             </div>
-
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Valor</label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-3 text-slate-400" size={18} />
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
-                    placeholder="0,00"
-                  />
-                </div>
-              </div>
-              <div className="w-1/3">
-                 <label className="block text-xs font-semibold text-slate-500 mb-1">Data</label>
-                 <input
-                    type="date"
-                    required
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-              </div>
+            <div className="w-1/3">
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Data</label>
+                <input
+                  type="date"
+                  required
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
             </div>
           </div>
 
@@ -165,43 +167,66 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
             )}
           </div>
 
-          {/* Installments & Status */}
-          <div className="flex gap-4">
-             {/* Only show installments for new transactions to avoid complex edit logic */}
-            {!initialData && (
-              <div className="flex-1">
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Parcelas</label>
-                <div className="relative">
-                   <Layers className="absolute left-3 top-3 text-slate-400" size={18} />
-                   <input
-                    type="number"
-                    min="1"
-                    max="48"
-                    value={installments}
-                    onChange={(e) => setInstallments(parseInt(e.target.value) || 1)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
+          {/* Installments Logic */}
+          {!initialData && (
+             <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="flex gap-4 items-end">
+                  <div className="flex-1">
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Parcelas</label>
+                    <div className="relative">
+                      <Layers className="absolute left-3 top-3 text-slate-400" size={18} />
+                      <input
+                        type="number"
+                        min="1"
+                        max="48"
+                        value={installments}
+                        onChange={(e) => setInstallments(parseInt(e.target.value) || 1)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  
+                  {installments > 1 && (
+                     <div className="flex-1">
+                        <label className="block text-xs font-semibold text-slate-500 mb-1">Valor refere-se a</label>
+                        <select
+                           value={amountType}
+                           onChange={(e) => setAmountType(e.target.value as 'total' | 'installment')}
+                           className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none text-sm"
+                        >
+                           <option value="installment">Valor da Parcela</option>
+                           <option value="total">Valor Total</option>
+                        </select>
+                     </div>
+                  )}
                 </div>
-              </div>
-            )}
+                {installments > 1 && (
+                   <div className="text-xs text-slate-500 bg-blue-50 text-blue-600 p-2 rounded-lg">
+                      {amountType === 'total' 
+                         ? `Serão criadas ${installments} parcelas de ${((parseFloat(amount) || 0) / installments).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}` 
+                         : `Total final será ${((parseFloat(amount) || 0) * installments).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`
+                      }
+                   </div>
+                )}
+             </div>
+          )}
             
-            {type !== TransactionType.CARD_EXPENSE && (
-              <div className="flex-1">
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Status</label>
-                <button
-                  type="button"
-                  onClick={() => setStatus(status === TransactionStatus.COMPLETED ? TransactionStatus.PENDING : TransactionStatus.COMPLETED)}
-                  className={`w-full py-2.5 rounded-xl text-sm font-medium border transition-all ${
-                    status === TransactionStatus.COMPLETED 
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                      : 'bg-orange-50 text-orange-700 border-orange-200'
-                  }`}
-                >
-                  {status === TransactionStatus.COMPLETED ? 'Concluído' : 'Pendente'}
-                </button>
-              </div>
-            )}
-          </div>
+          {type !== TransactionType.CARD_EXPENSE && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Status</label>
+              <button
+                type="button"
+                onClick={() => setStatus(status === TransactionStatus.COMPLETED ? TransactionStatus.PENDING : TransactionStatus.COMPLETED)}
+                className={`w-full py-2.5 rounded-xl text-sm font-medium border transition-all ${
+                  status === TransactionStatus.COMPLETED 
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                    : 'bg-orange-50 text-orange-700 border-orange-200'
+                }`}
+              >
+                {status === TransactionStatus.COMPLETED ? 'Concluído' : 'Pendente'}
+              </button>
+            </div>
+          )}
 
           <div className="pt-4">
             <button

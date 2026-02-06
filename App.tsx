@@ -8,13 +8,14 @@ import { TransactionListModal } from './components/TransactionListModal';
 import { CardForm } from './components/CardForm';
 import { StorageService, generateInstallments, getInvoiceMonth } from './services/storage';
 import { User, Transaction, ViewState, FilterState, CreditCard, TransactionType, TransactionStatus } from './types';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { format, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 function App() {
   // --- Global State ---
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState<ViewState>('DASHBOARD');
   
   // Data State
@@ -29,7 +30,7 @@ function App() {
   const [isCardFormOpen, setIsCardFormOpen] = useState(false);
   const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
 
-  // UX State - List Modal (Popup details)
+  // UX State - List Modal
   const [isListModalOpen, setIsListModalOpen] = useState(false);
   const [listModalTitle, setListModalTitle] = useState('');
   const [listModalTransactions, setListModalTransactions] = useState<Transaction[]>([]);
@@ -41,133 +42,127 @@ function App() {
     sortOrder: 'desc'
   });
 
-  // Auth (Mock)
+  // Auth State (Inputs)
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPass, setLoginPass] = useState('');
+  const [isRegister, setIsRegister] = useState(false);
+  const [regName, setRegName] = useState('');
+  const [authError, setAuthError] = useState('');
 
   // --- Effects ---
   useEffect(() => {
-    const u = StorageService.getUser();
-    if (u) {
+    // Auth Observer
+    const unsubscribe = StorageService.observeAuth((u) => {
       setUser(u);
-      // Fetch initial data
-      const d = StorageService.getData();
-      setCards(d.cards); 
-      setTransactions(d.transactions);
-    }
+      if (u) {
+        fetchData(u.id);
+      } else {
+        setTransactions([]);
+        setCards([]);
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
-  const refreshData = () => {
-    const d = StorageService.getData();
-    setTransactions(d.transactions);
-    setCards(d.cards);
+  const fetchData = async (userId: string) => {
+    setLoading(true);
+    try {
+      const [txs, cds] = await Promise.all([
+        StorageService.getTransactions(userId),
+        StorageService.getCards(userId)
+      ]);
+      setTransactions(txs);
+      setCards(cds);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // --- Auth Handlers ---
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginEmail && loginPass) {
-      const name = loginEmail.split('@')[0];
-      const u = StorageService.login(name.charAt(0).toUpperCase() + name.slice(1), loginEmail);
-      setUser(u);
-      refreshData();
+    setAuthError('');
+    try {
+      await StorageService.loginEmail(loginEmail, loginPass);
+    } catch (error: any) {
+      setAuthError('Erro ao fazer login. Verifique suas credenciais.');
     }
   };
 
-  const handleLogout = () => {
-    StorageService.logout();
-    setUser(null);
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    try {
+      await StorageService.registerEmail(loginEmail, loginPass, regName);
+    } catch (error: any) {
+      setAuthError('Erro ao criar conta. Tente novamente.');
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setAuthError('');
+    try {
+      await StorageService.loginGoogle();
+    } catch (error: any) {
+      setAuthError('Erro no login com Google.');
+    }
+  };
+
+  const handleLogout = async () => {
+    await StorageService.logout();
   };
 
   // --- Transaction Handlers ---
-  const handleTransactionSubmit = (t: Transaction, installments: number) => {
+  const handleTransactionSubmit = async (t: Transaction, installments: number, amountType: 'total' | 'installment') => {
+    if (!user) return;
+    
     if (editingTransaction) {
-      StorageService.updateTransaction(t);
+      await StorageService.updateTransaction(t);
     } else {
-      const allT = generateInstallments(t, installments);
-      allT.forEach(tx => StorageService.addTransaction(tx));
+      const allT = generateInstallments(t, installments, amountType);
+      // Sequentially add to Firestore (or batch if needed, but simple loop is fine for < 100)
+      for (const tx of allT) {
+        await StorageService.addTransaction(user.id, tx);
+      }
     }
-    refreshData();
+    fetchData(user.id);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    if (!user) return;
     if (window.confirm('Tem certeza que deseja excluir esta transação?')) {
-      StorageService.deleteTransaction(id);
-      refreshData();
+      await StorageService.deleteTransaction(id);
+      fetchData(user.id);
     }
   };
 
-  const handleToggleStatus = (id: string) => {
-    StorageService.toggleStatus(id);
-    refreshData();
+  const handleToggleStatus = async (id: string) => {
+    if (!user) return;
+    const t = transactions.find(tx => tx.id === id);
+    if (t) {
+      await StorageService.toggleStatus(t);
+      fetchData(user.id);
+    }
   };
 
   // --- Card Handlers ---
-  const handleCardSubmit = (c: CreditCard) => {
-    if (editingCard) StorageService.updateCard(c);
-    else StorageService.addCard(c);
-    refreshData();
+  const handleCardSubmit = async (c: CreditCard) => {
+    if (!user) return;
+    if (editingCard) await StorageService.updateCard(c);
+    else await StorageService.addCard(user.id, c);
+    fetchData(user.id);
   };
 
-  const handleDeleteCard = (id: string) => {
+  const handleDeleteCard = async (id: string) => {
+    if (!user) return;
     if (window.confirm('Excluir cartão?')) {
-      StorageService.deleteCard(id);
-      refreshData();
+      await StorageService.deleteCard(id);
+      fetchData(user.id);
     }
   };
-
-  // --- Modal Logic ---
-
-  // Dashboard Card Click -> Popup with Paid Transactions
-  const handleDashboardCardClick = (type: 'INCOME' | 'EXPENSE' | 'BALANCE') => {
-    const targetDate = new Date(filter.year, filter.month, 1);
-    
-    let filteredT = transactions.filter(t => {
-      // Date Check
-      let dateMatch = isSameMonth(new Date(t.date), targetDate);
-      if (t.type === TransactionType.CARD_EXPENSE && t.cardId) {
-         const card = cards.find(c => c.id === t.cardId);
-         if (card) dateMatch = isSameMonth(getInvoiceMonth(new Date(t.date), card.closingDay), targetDate);
-      }
-      return dateMatch;
-    });
-
-    // 2. Filter by Type and Status (PAID ONLY as requested)
-    if (type === 'INCOME') {
-      filteredT = filteredT.filter(t => t.type === TransactionType.INCOME && t.status === TransactionStatus.COMPLETED);
-      setListModalTitle('Receitas Realizadas');
-    } else if (type === 'EXPENSE') {
-      filteredT = filteredT.filter(t => t.type !== TransactionType.INCOME && t.status === TransactionStatus.COMPLETED);
-      setListModalTitle('Despesas Pagas');
-    } else {
-      // Balance - Show all realized
-      filteredT = filteredT.filter(t => t.status === TransactionStatus.COMPLETED);
-      setListModalTitle('Extrato Realizado');
-    }
-
-    setListModalTransactions(filteredT);
-    setIsListModalOpen(true);
-  };
-
-  // Credit Card Click -> Popup with All Transactions for that card
-  const handleCreditCardClick = (cardId: string) => {
-    const card = cards.find(c => c.id === cardId);
-    if (!card) return;
-
-    // Show transactions for this card, filtering by invoice date usually, or just show all logic for this card in this view context
-    // Let's show selected month invoice items
-    const targetDate = new Date(filter.year, filter.month, 1);
-    
-    const cardTx = transactions.filter(t => 
-      t.cardId === cardId && 
-      isSameMonth(getInvoiceMonth(new Date(t.date), card.closingDay), targetDate)
-    );
-
-    setListModalTitle(`Fatura: ${card.name}`);
-    setListModalTransactions(cardTx);
-    setIsListModalOpen(true);
-  };
-
 
   const changeMonth = (increment: number) => {
     setFilter(prev => {
@@ -179,20 +174,21 @@ function App() {
     });
   };
 
-  // --- Filtering for Main Views ---
-  const getFilteredTransactionsForView = () => {
-    // If specific view (INCOMES/EXPENSES), filter globally for the table
-    // If DASHBOARD/CARDS, this prop isn't strictly used by the view component in the same way
-    if (currentView === 'INCOMES') {
-      return transactions.filter(t => t.type === TransactionType.INCOME);
-    }
-    if (currentView === 'EXPENSES') {
-      return transactions.filter(t => t.type !== TransactionType.INCOME);
-    }
-    return transactions;
+  const handleSortChange = (field: 'date' | 'amount') => {
+    setFilter(prev => {
+      // If clicking the same field, toggle order. If new field, set to desc by default
+      if (prev.sortBy === field) {
+        return { ...prev, sortOrder: prev.sortOrder === 'asc' ? 'desc' : 'asc' };
+      }
+      return { ...prev, sortBy: field, sortOrder: 'desc' };
+    });
   };
 
   // --- Render ---
+
+  if (loading && !user) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-emerald-500" size={48} /></div>;
+  }
 
   if (!user) {
     return (
@@ -203,13 +199,39 @@ function App() {
              <h1 className="text-2xl font-bold text-slate-800">Finanças 2026</h1>
              <p className="text-slate-500 mt-2">Controle sua vida financeira.</p>
            </div>
-           <form onSubmit={handleLogin} className="space-y-4">
+           
+           {authError && <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg text-center">{authError}</div>}
+
+           <form onSubmit={isRegister ? handleRegister : handleLogin} className="space-y-4">
+             {isRegister && (
+               <input type="text" value={regName} onChange={e => setRegName(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Seu Nome" required />
+             )}
              <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="seu@email.com" required />
              <input type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="••••••••" required />
-             <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200">Entrar</button>
+             
+             <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200">
+               {isRegister ? 'Criar Conta' : 'Entrar'}
+             </button>
            </form>
+
+           <div className="my-6 flex items-center gap-4">
+             <div className="h-px bg-slate-100 flex-1"></div>
+             <span className="text-xs text-slate-400">ou</span>
+             <div className="h-px bg-slate-100 flex-1"></div>
+           </div>
+
+           <button 
+             onClick={handleGoogleLogin} 
+             className="w-full bg-white border border-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+           >
+             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
+             Entrar com Google
+           </button>
+
            <div className="mt-6 text-center">
-             <button className="text-sm text-slate-400 hover:text-emerald-600">Criar nova conta</button>
+             <button onClick={() => setIsRegister(!isRegister)} className="text-sm text-slate-400 hover:text-emerald-600">
+               {isRegister ? 'Já tenho uma conta' : 'Criar nova conta'}
+             </button>
            </div>
         </div>
       </div>
@@ -218,11 +240,18 @@ function App() {
 
   const currentDateDisplay = format(new Date(filter.year, filter.month, 1), 'MMMM yyyy', { locale: ptBR });
   
-  // Decide what title to show
   let viewTitle = 'Visão Geral';
   if (currentView === 'INCOMES') viewTitle = 'Minhas Entradas';
   if (currentView === 'EXPENSES') viewTitle = 'Minhas Saídas';
   if (currentView === 'CARDS') viewTitle = 'Meus Cartões';
+
+  // Sort logic for display
+  const getFilteredTransactionsForView = () => {
+    const baseList = currentView === 'INCOMES' 
+      ? transactions.filter(t => t.type === TransactionType.INCOME)
+      : transactions.filter(t => t.type !== TransactionType.INCOME);
+    return baseList;
+  };
 
   return (
     <Layout currentView={currentView} setView={setCurrentView} user={user} onLogout={handleLogout}>
@@ -235,6 +264,8 @@ function App() {
         </div>
 
         <div className="flex items-center gap-3">
+           {loading && <Loader2 className="animate-spin text-emerald-500 mr-2" />}
+           
            <div className="flex items-center bg-white rounded-xl border border-slate-200 p-1 shadow-sm">
               <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"><ChevronLeft size={20} /></button>
               <span className="min-w-[140px] text-center font-bold text-slate-700 capitalize select-none">{currentDateDisplay}</span>
@@ -257,7 +288,31 @@ function App() {
           transactions={transactions} 
           filter={filter} 
           cards={cards} 
-          onViewDetails={handleDashboardCardClick}
+          onViewDetails={(type) => { 
+            // Reuse logic for modal
+            const targetDate = new Date(filter.year, filter.month, 1);
+            let filteredT = transactions.filter(t => {
+               let dateMatch = isSameMonth(new Date(t.date), targetDate);
+               if (t.type === TransactionType.CARD_EXPENSE && t.cardId) {
+                  const card = cards.find(c => c.id === t.cardId);
+                  if (card) dateMatch = isSameMonth(getInvoiceMonth(new Date(t.date), card.closingDay), targetDate);
+               }
+               return dateMatch;
+            });
+
+            if (type === 'INCOME') {
+               filteredT = filteredT.filter(t => t.type === TransactionType.INCOME && t.status === TransactionStatus.COMPLETED);
+               setListModalTitle('Receitas Realizadas');
+            } else if (type === 'EXPENSE') {
+               filteredT = filteredT.filter(t => t.type !== TransactionType.INCOME && t.status === TransactionStatus.COMPLETED);
+               setListModalTitle('Despesas Pagas');
+            } else {
+               filteredT = filteredT.filter(t => t.status === TransactionStatus.COMPLETED);
+               setListModalTitle('Extrato Realizado');
+            }
+            setListModalTransactions(filteredT);
+            setIsListModalOpen(true);
+          }}
         />
       )}
       
@@ -268,6 +323,7 @@ function App() {
           onEdit={(t) => { setEditingTransaction(t); setIsTxModalOpen(true); }} 
           onDelete={handleDelete}
           onToggleStatus={handleToggleStatus}
+          onSortChange={handleSortChange}
         />
       )}
       
@@ -277,9 +333,19 @@ function App() {
           transactions={transactions} 
           filterMonth={filter.month} 
           filterYear={filter.year} 
-          onCardClick={handleCreditCardClick}
+          onCardClick={(cardId) => {
+            const card = cards.find(c => c.id === cardId);
+            if (!card) return;
+            const targetDate = new Date(filter.year, filter.month, 1);
+            const cardTx = transactions.filter(t => 
+               t.cardId === cardId && 
+               isSameMonth(getInvoiceMonth(new Date(t.date), card.closingDay), targetDate)
+            );
+            setListModalTitle(`Fatura: ${card.name}`);
+            setListModalTransactions(cardTx);
+            setIsListModalOpen(true);
+          }}
           onAddTransaction={(cardId) => {
-            // Pre-fill transaction form for this card
             setEditingTransaction({ 
               id: '', description: '', amount: 0, date: new Date().toISOString(),
               type: TransactionType.CARD_EXPENSE, category: 'Outros', status: TransactionStatus.COMPLETED,
