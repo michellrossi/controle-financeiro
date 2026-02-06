@@ -1,4 +1,3 @@
-import { Migrador } from './Migrador';
 import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
@@ -121,7 +120,7 @@ function App() {
     if (!user) return;
     
     if (editingTransaction) {
-      await StorageService.updateTransaction(t);
+      await StorageService.updateTransaction(user.id, t);
     } else {
       const allT = generateInstallments(t, installments, amountType);
       // Sequentially add to Firestore (or batch if needed, but simple loop is fine for < 100)
@@ -135,7 +134,7 @@ function App() {
   const handleDelete = async (id: string) => {
     if (!user) return;
     if (window.confirm('Tem certeza que deseja excluir esta transação?')) {
-      await StorageService.deleteTransaction(id);
+      await StorageService.deleteTransaction(user.id, id);
       fetchData(user.id);
     }
   };
@@ -144,7 +143,7 @@ function App() {
     if (!user) return;
     const t = transactions.find(tx => tx.id === id);
     if (t) {
-      await StorageService.toggleStatus(t);
+      await StorageService.toggleStatus(user.id, t);
       fetchData(user.id);
     }
   };
@@ -152,7 +151,7 @@ function App() {
   // --- Card Handlers ---
   const handleCardSubmit = async (c: CreditCard) => {
     if (!user) return;
-    if (editingCard) await StorageService.updateCard(c);
+    if (editingCard) await StorageService.updateCard(user.id, c);
     else await StorageService.addCard(user.id, c);
     fetchData(user.id);
   };
@@ -160,7 +159,7 @@ function App() {
   const handleDeleteCard = async (id: string) => {
     if (!user) return;
     if (window.confirm('Excluir cartão?')) {
-      await StorageService.deleteCard(id);
+      await StorageService.deleteCard(user.id, id);
       fetchData(user.id);
     }
   };
@@ -257,9 +256,6 @@ function App() {
   return (
     <Layout currentView={currentView} setView={setCurrentView} user={user} onLogout={handleLogout}>
       
-      {/* ADICIONE ESTA LINHA AQUI PARA APARECER O BOTÃO */}
-      {user && <Migrador userId={user.id} />}
-
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>

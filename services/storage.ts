@@ -127,52 +127,61 @@ export const StorageService = {
   },
 
   // --- Transactions ---
+  // Path: artifacts > default-app-id > users > {userId} > transactions
+  
   getTransactions: async (userId: string): Promise<Transaction[]> => {
-    const q = query(collection(db, "transactions"), where("userId", "==", userId));
-    const querySnapshot = await getDocs(q);
+    // Access subcollection directly. No need for 'where userId' filter.
+    const subColRef = collection(db, "artifacts", "default-app-id", "users", userId, "transactions");
+    const querySnapshot = await getDocs(subColRef);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
   },
 
   addTransaction: async (userId: string, t: Transaction) => {
-    const { id, ...data } = t; // Remove temp ID
-    await addDoc(collection(db, "transactions"), { ...data, userId });
+    const { id, ...data } = t; 
+    const subColRef = collection(db, "artifacts", "default-app-id", "users", userId, "transactions");
+    await addDoc(subColRef, { ...data, userId });
   },
 
-  updateTransaction: async (t: Transaction) => {
+  updateTransaction: async (userId: string, t: Transaction) => {
     const { id, ...data } = t;
-    const ref = doc(db, "transactions", id);
-    await updateDoc(ref, data);
+    const docRef = doc(db, "artifacts", "default-app-id", "users", userId, "transactions", id);
+    await updateDoc(docRef, data);
   },
 
-  deleteTransaction: async (id: string) => {
-    await deleteDoc(doc(db, "transactions", id));
+  deleteTransaction: async (userId: string, id: string) => {
+    const docRef = doc(db, "artifacts", "default-app-id", "users", userId, "transactions", id);
+    await deleteDoc(docRef);
   },
 
-  toggleStatus: async (t: Transaction) => {
+  toggleStatus: async (userId: string, t: Transaction) => {
     const newStatus = t.status === TransactionStatus.COMPLETED ? TransactionStatus.PENDING : TransactionStatus.COMPLETED;
-    const ref = doc(db, "transactions", t.id);
-    await updateDoc(ref, { status: newStatus });
+    const docRef = doc(db, "artifacts", "default-app-id", "users", userId, "transactions", t.id);
+    await updateDoc(docRef, { status: newStatus });
   },
 
   // --- Cards ---
+  // Path: artifacts > default-app-id > users > {userId} > cards
+
   getCards: async (userId: string): Promise<CreditCard[]> => {
-    const q = query(collection(db, "cards"), where("userId", "==", userId));
-    const querySnapshot = await getDocs(q);
+    const subColRef = collection(db, "artifacts", "default-app-id", "users", userId, "cards");
+    const querySnapshot = await getDocs(subColRef);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CreditCard));
   },
 
   addCard: async (userId: string, c: CreditCard) => {
     const { id, ...data } = c;
-    await addDoc(collection(db, "cards"), { ...data, userId });
+    const subColRef = collection(db, "artifacts", "default-app-id", "users", userId, "cards");
+    await addDoc(subColRef, { ...data, userId });
   },
 
-  updateCard: async (c: CreditCard) => {
+  updateCard: async (userId: string, c: CreditCard) => {
     const { id, ...data } = c;
-    const ref = doc(db, "cards", id);
-    await updateDoc(ref, data);
+    const docRef = doc(db, "artifacts", "default-app-id", "users", userId, "cards", id);
+    await updateDoc(docRef, data);
   },
 
-  deleteCard: async (id: string) => {
-    await deleteDoc(doc(db, "cards", id));
+  deleteCard: async (userId: string, id: string) => {
+    const docRef = doc(db, "artifacts", "default-app-id", "users", userId, "cards", id);
+    await deleteDoc(docRef);
   }
 };
