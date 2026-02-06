@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewState, User } from '../types';
-import { LayoutDashboard, ArrowUpCircle, ArrowDownCircle, CreditCard, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, ArrowUpFromLine, ArrowDownToLine, CreditCard, LogOut, Menu, X } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -17,16 +17,16 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
   const NavIcon = ({ view, icon: Icon, tooltip }: { view: ViewState; icon: any; tooltip: string }) => (
     <button
       onClick={() => setView(view)}
-      className={`group relative flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 ${
+      className={`group relative flex items-center justify-center w-12 h-12 rounded-2xl transition-all duration-200 ${
         currentView === view 
-          ? 'bg-emerald-50 text-emerald-600' 
+          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' 
           : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
       }`}
       title={tooltip}
     >
       <Icon size={24} strokeWidth={currentView === view ? 2.5 : 2} />
       {/* Tooltip */}
-      <span className="absolute left-14 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+      <span className="absolute left-16 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
         {tooltip}
       </span>
     </button>
@@ -34,26 +34,23 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {/* Desktop Sidebar (Icon Only) */}
-      <aside className="hidden md:flex flex-col items-center w-20 bg-white border-r border-slate-200 py-8">
-        <div className="mb-10">
-           <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
-            <span className="text-white font-bold text-xl">F</span>
-          </div>
-        </div>
-
-        <nav className="flex-1 flex flex-col gap-4 w-full items-center px-2">
+      {/* Desktop Sidebar (Icon Only - Centered) */}
+      <aside className="hidden md:flex flex-col items-center justify-center w-24 bg-white border-r border-slate-100 py-8 relative">
+        
+        {/* Navigation - Centered vertically via justify-center on parent */}
+        <nav className="flex flex-col gap-6 w-full items-center px-2">
           <NavIcon view="DASHBOARD" icon={LayoutDashboard} tooltip="Visão Geral" />
-          <NavIcon view="INCOMES" icon={ArrowUpCircle} tooltip="Entradas" />
-          <NavIcon view="EXPENSES" icon={ArrowDownCircle} tooltip="Saídas" />
+          <NavIcon view="INCOMES" icon={ArrowUpFromLine} tooltip="Entradas" />
+          <NavIcon view="EXPENSES" icon={ArrowDownToLine} tooltip="Saídas" />
           <NavIcon view="CARDS" icon={CreditCard} tooltip="Cartões" />
         </nav>
 
-        <div className="mt-auto flex flex-col gap-4 items-center w-full">
+        {/* User / Logout - Pinned to bottom, or could be part of the flow. Keeping separate to separate nav from auth */}
+        <div className="absolute bottom-8 flex flex-col gap-4 items-center w-full">
            <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white shadow-sm" />
            <button 
              onClick={onLogout} 
-             className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
+             className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-red-500 transition-colors"
              title="Sair"
            >
              <LogOut size={20} />
@@ -78,8 +75,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 bg-white z-10 pt-20 px-4 flex flex-col gap-2">
            <button onClick={() => { setView('DASHBOARD'); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-50 font-medium text-slate-700"><LayoutDashboard size={20}/> Visão Geral</button>
-           <button onClick={() => { setView('INCOMES'); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-50 font-medium text-slate-700"><ArrowUpCircle size={20}/> Entradas</button>
-           <button onClick={() => { setView('EXPENSES'); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-50 font-medium text-slate-700"><ArrowDownCircle size={20}/> Saídas</button>
+           <button onClick={() => { setView('INCOMES'); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-50 font-medium text-slate-700"><ArrowUpFromLine size={20}/> Entradas</button>
+           <button onClick={() => { setView('EXPENSES'); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-50 font-medium text-slate-700"><ArrowDownToLine size={20}/> Saídas</button>
            <button onClick={() => { setView('CARDS'); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-50 font-medium text-slate-700"><CreditCard size={20}/> Cartões</button>
            
            <div className="mt-auto mb-8 border-t pt-4">

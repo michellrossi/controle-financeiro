@@ -93,7 +93,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, filter, card
     const monthName = format(d, 'MMM', { locale: ptBR }).toUpperCase();
     
     // Sum of all card expenses that fall into this month's invoice
-    // Simplified logic: checking invoice date
     let total = 0;
     
     cards.forEach(card => {
@@ -114,21 +113,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, filter, card
   });
 
 
-  const StatCard = ({ title, value, sub, icon: Icon, color, bg, onClick }: any) => (
+  const StatCard = ({ title, value, sub, icon: Icon, color, bg, borderColor, onClick }: any) => (
     <div 
       onClick={onClick}
-      className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group"
+      className={`bg-white p-6 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group border-2 ${borderColor}`}
     >
       <div className="flex justify-between items-start mb-4">
         <div>
-           <p className="text-sm font-medium text-slate-500 group-hover:text-slate-700">{title}</p>
-           <h3 className={`text-2xl font-bold mt-1 ${color}`}>{formatCurrency(value)}</h3>
+           <p className="text-sm font-semibold text-slate-500 group-hover:text-slate-700">{title}</p>
+           <h3 className={`text-4xl font-extrabold mt-2 tracking-tight ${color}`}>{formatCurrency(value)}</h3>
         </div>
         <div className={`p-3 rounded-xl ${bg} group-hover:scale-110 transition-transform`}>
-          <Icon className={color} size={24} />
+          <Icon className={color} size={28} />
         </div>
       </div>
-      {sub && <p className="text-xs text-slate-400 bg-slate-50 inline-block px-2 py-1 rounded-md">{sub}</p>}
+      {sub && <p className="text-xs font-medium text-slate-400 bg-slate-50 inline-block px-2 py-1 rounded-md">{sub}</p>}
     </div>
   );
 
@@ -138,20 +137,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, filter, card
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard 
           title="Receitas Recebidas" 
-          value={income - incomePending} // Showing Realized as per prompt
+          value={income - incomePending} 
           sub={`Pendente: ${formatCurrency(incomePending)}`}
           icon={TrendingUp} 
           color="text-emerald-500" 
           bg="bg-emerald-50" 
+          borderColor="border-emerald-100"
           onClick={() => onViewDetails('INCOME')}
         />
         <StatCard 
           title="Despesas Pagas" 
-          value={expenses - expensePending} // Showing Realized as per prompt
+          value={expenses - expensePending} 
           sub={`Pendente: ${formatCurrency(expensePending)}`}
           icon={TrendingDown} 
           color="text-rose-500" 
           bg="bg-rose-50" 
+          borderColor="border-rose-100"
           onClick={() => onViewDetails('EXPENSE')}
         />
         <StatCard 
@@ -161,6 +162,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, filter, card
           icon={Wallet} 
           color="text-blue-500" 
           bg="bg-blue-50" 
+          borderColor="border-blue-100"
           onClick={() => onViewDetails('BALANCE')}
         />
       </div>

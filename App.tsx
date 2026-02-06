@@ -230,23 +230,23 @@ function App() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-           <h1 className="text-2xl font-bold text-slate-800 capitalize">{viewTitle}</h1>
-           <p className="text-slate-500 text-sm">Bem vindo de volta, {user.name.split(' ')[0]}</p>
+           <h1 className="text-2xl font-bold text-slate-800 capitalize tracking-tight">{viewTitle}</h1>
+           <p className="text-slate-500 text-sm font-medium">Bem vindo de volta, {user.name.split(' ')[0]}</p>
         </div>
 
         <div className="flex items-center gap-3">
            <div className="flex items-center bg-white rounded-xl border border-slate-200 p-1 shadow-sm">
               <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"><ChevronLeft size={20} /></button>
-              <span className="min-w-[140px] text-center font-medium text-slate-700 capitalize select-none">{currentDateDisplay}</span>
+              <span className="min-w-[140px] text-center font-bold text-slate-700 capitalize select-none">{currentDateDisplay}</span>
               <button onClick={() => changeMonth(1)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"><ChevronRight size={20} /></button>
            </div>
            
            <button 
              onClick={() => { setEditingTransaction(null); setIsTxModalOpen(true); }}
-             className="flex items-center gap-2 bg-slate-800 text-white px-5 py-3 rounded-xl hover:bg-slate-900 transition-all shadow-lg font-medium"
+             className="w-12 h-12 flex items-center justify-center bg-emerald-500 text-white rounded-2xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200"
+             title="Nova Transação"
            >
-             <Plus size={20} />
-             <span className="hidden md:inline">Nova Transação</span>
+             <Plus size={24} strokeWidth={3} />
            </button>
         </div>
       </div>

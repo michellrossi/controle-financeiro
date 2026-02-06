@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Transaction, TransactionType, TransactionStatus, FilterState } from '../types';
 import { formatCurrency } from '../services/storage';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ArrowUpRight, ArrowDownRight, CreditCard, Search, Calendar, Edit2, Trash2, CheckCircle, Circle } from 'lucide-react';
+import { ArrowUp, ArrowDown, CreditCard, Edit2, Trash2, Calendar, DollarSign } from 'lucide-react';
 
 interface TransactionsProps {
   transactions: Transaction[];
@@ -14,8 +14,10 @@ interface TransactionsProps {
 }
 
 export const Transactions: React.FC<TransactionsProps> = ({ transactions, filter, onEdit, onDelete, onToggleStatus }) => {
-  const { month, year, sortBy, sortOrder } = filter;
+  const { month, year } = filter;
+  const [localSortBy, setLocalSortBy] = useState<'date' | 'amount'>('date');
 
+  // Local Sort Handler
   const filteredTransactions = useMemo(() => {
     return transactions
       .filter(t => {
@@ -23,95 +25,103 @@ export const Transactions: React.FC<TransactionsProps> = ({ transactions, filter
         return d.getMonth() === month && d.getFullYear() === year;
       })
       .sort((a, b) => {
-        let valA = sortBy === 'date' ? new Date(a.date).getTime() : a.amount;
-        let valB = sortBy === 'date' ? new Date(b.date).getTime() : b.amount;
-        return sortOrder === 'asc' ? valA - valB : valB - valA;
+        let valA = localSortBy === 'date' ? new Date(a.date).getTime() : a.amount;
+        let valB = localSortBy === 'date' ? new Date(b.date).getTime() : b.amount;
+        // Default sort descending for date, descending for amount
+        return valB - valA;
       });
-  }, [transactions, month, year, sortBy, sortOrder]);
+  }, [transactions, month, year, localSortBy]);
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-slate-50 border-b border-slate-100">
-            <tr>
-              <th className="text-left py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Transação</th>
-              <th className="text-left py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Categoria</th>
-              <th className="text-left py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Data</th>
-              <th className="text-right py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Valor</th>
-              <th className="text-center py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-              <th className="text-center py-4 px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {filteredTransactions.length === 0 ? (
-               <tr>
-                 <td colSpan={6} className="py-12 text-center text-slate-400">
-                   Nenhuma transação encontrada neste período.
-                 </td>
-               </tr>
-            ) : filteredTransactions.map((t) => (
-              <tr key={t.id} className="hover:bg-slate-50 transition-colors group">
-                <td className="py-4 px-6">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${
-                      t.type === TransactionType.INCOME ? 'bg-emerald-100 text-emerald-600' :
-                      t.type === TransactionType.CARD_EXPENSE ? 'bg-indigo-100 text-indigo-600' :
-                      'bg-rose-100 text-rose-600'
-                    }`}>
-                      {t.type === TransactionType.INCOME ? <ArrowUpRight size={18} /> : 
-                       t.type === TransactionType.CARD_EXPENSE ? <CreditCard size={18} /> : <ArrowDownRight size={18} />}
-                    </div>
-                    <div>
-                      <p className="font-medium text-slate-800">{t.description}</p>
-                      {t.installments && (
-                        <span className="text-xs text-slate-400">
-                          Parcela {t.installments.current}/{t.installments.total}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </td>
-                <td className="py-4 px-6">
-                  <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                    {t.category}
-                  </span>
-                </td>
-                <td className="py-4 px-6 text-sm text-slate-500">
-                  {format(new Date(t.date), 'dd MMM yyyy', { locale: ptBR })}
-                </td>
-                <td className={`py-4 px-6 text-right font-semibold ${
-                  t.type === TransactionType.INCOME ? 'text-emerald-600' : 'text-rose-600'
+    <div className="space-y-4 animate-fade-in">
+      
+      {/* Header Sort Toggle */}
+      <div className="flex justify-end mb-2">
+         <div className="flex bg-white p-1 rounded-xl border border-slate-100 shadow-sm">
+           <button 
+             onClick={() => setLocalSortBy('date')}
+             className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${localSortBy === 'date' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}
+           >
+             <Calendar size={14} /> Data ↓
+           </button>
+           <button 
+             onClick={() => setLocalSortBy('amount')}
+             className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${localSortBy === 'amount' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}
+           >
+             <DollarSign size={14} /> Valor
+           </button>
+         </div>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {filteredTransactions.length === 0 ? (
+           <div className="bg-white rounded-2xl p-12 text-center border border-slate-100">
+             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+               <Calendar size={32} />
+             </div>
+             <p className="text-slate-500 font-medium">Nenhuma transação neste período.</p>
+           </div>
+        ) : filteredTransactions.map((t) => (
+          <div key={t.id} className="bg-white rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between shadow-sm border border-slate-100 hover:shadow-md transition-all gap-4">
+             
+             {/* Left Section: Icon & Details */}
+             <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
+                  t.type === TransactionType.INCOME ? 'bg-emerald-50 text-emerald-500' :
+                  t.type === TransactionType.CARD_EXPENSE ? 'bg-indigo-50 text-indigo-500' :
+                  'bg-rose-50 text-rose-500'
                 }`}>
-                  {t.type === TransactionType.INCOME ? '+' : '-'} {formatCurrency(t.amount)}
-                </td>
-                <td className="py-4 px-6 text-center">
-                  <button 
-                    onClick={() => onToggleStatus(t.id)}
-                    className={`flex items-center justify-center gap-1 mx-auto px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                      t.status === TransactionStatus.COMPLETED 
-                        ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                        : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                    }`}
-                  >
-                    {t.status === TransactionStatus.COMPLETED ? <CheckCircle size={14} /> : <Circle size={14} />}
-                    {t.status === TransactionStatus.COMPLETED ? 'Pago/Recebido' : 'Pendente'}
-                  </button>
-                </td>
-                <td className="py-4 px-6 text-center">
-                  <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => onEdit(t)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                      <Edit2 size={16} />
-                    </button>
-                    <button onClick={() => onDelete(t.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  {t.type === TransactionType.INCOME ? <ArrowUp size={24} /> : 
+                   t.type === TransactionType.CARD_EXPENSE ? <CreditCard size={24} /> : <ArrowDown size={24} />}
+                </div>
+
+                <div className="flex flex-col gap-1">
+                   <span className="font-bold text-slate-800 text-base">{t.description}</span>
+                   <div className="flex items-center gap-2 text-xs">
+                     <span className="text-slate-400">{format(new Date(t.date), 'dd/MM/yyyy')}</span>
+                     <span className="px-2 py-0.5 bg-slate-100 rounded text-slate-500 uppercase font-semibold text-[10px] tracking-wide">{t.category}</span>
+                     {t.installments && (
+                       <span className="text-slate-400">({t.installments.current}/{t.installments.total})</span>
+                     )}
+                   </div>
+                </div>
+             </div>
+
+             {/* Right Section: Amount & Actions */}
+             <div className="flex items-center justify-between md:justify-end gap-4 md:gap-8 border-t md:border-t-0 pt-4 md:pt-0 border-slate-50">
+                <span className={`text-lg font-bold whitespace-nowrap ${
+                  t.type === TransactionType.INCOME ? 'text-emerald-500' : 'text-rose-500'
+                }`}>
+                  {t.type === TransactionType.INCOME ? '+ ' : ''} {formatCurrency(t.amount)}
+                </span>
+                
+                <div className="flex items-center gap-4">
+                   <button 
+                     onClick={() => onToggleStatus(t.id)}
+                     className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider min-w-[90px] text-center transition-colors ${
+                       t.status === TransactionStatus.COMPLETED 
+                         ? 'bg-emerald-100 text-emerald-600' 
+                         : 'bg-blue-50 text-blue-500'
+                     }`}
+                   >
+                      {t.status === TransactionStatus.COMPLETED 
+                        ? (t.type === TransactionType.INCOME ? 'Recebido' : 'Pago') 
+                        : (t.type === TransactionType.INCOME ? 'A Receber' : 'A Pagar')
+                      }
+                   </button>
+                   
+                   <div className="flex items-center gap-1">
+                      <button onClick={() => onEdit(t)} className="p-2 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors">
+                        <Edit2 size={16} />
+                      </button>
+                      <button onClick={() => onDelete(t.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors">
+                        <Trash2 size={16} />
+                      </button>
+                   </div>
+                </div>
+             </div>
+          </div>
+        ))}
       </div>
     </div>
   );
