@@ -1,3 +1,4 @@
+import { Migrador } from './Migrador';
 import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
@@ -256,6 +257,9 @@ function App() {
   return (
     <Layout currentView={currentView} setView={setCurrentView} user={user} onLogout={handleLogout}>
       
+      {/* ADICIONE ESTA LINHA AQUI PARA APARECER O BOTÃO */}
+      {user && <Migrador userId={user.id} />}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
