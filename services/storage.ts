@@ -85,6 +85,26 @@ export const StorageService = {
   // --- Cards ---
   getCards: (): CreditCard[] => {
     return StorageService.getData().cards;
+  },
+
+  addCard: (card: CreditCard) => {
+    const data = StorageService.getData();
+    data.cards.push(card);
+    StorageService.saveData(data);
+  },
+
+  updateCard: (updated: CreditCard) => {
+    const data = StorageService.getData();
+    data.cards = data.cards.map(c => c.id === updated.id ? updated : c);
+    StorageService.saveData(data);
+  },
+
+  deleteCard: (id: string) => {
+    const data = StorageService.getData();
+    data.cards = data.cards.filter(c => c.id !== id);
+    // Optional: Delete associated transactions or keep them? Keeping for now but removing cardId linkage could be safer.
+    // For simplicity in this demo, we just remove the card.
+    StorageService.saveData(data);
   }
 };
 

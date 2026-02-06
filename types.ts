@@ -7,7 +7,7 @@ export enum TransactionType {
 export enum TransactionStatus {
   PENDING = 'PENDING',
   COMPLETED = 'COMPLETED',
-  OVERDUE = 'OVERDUE' // Derived status usually, but can be explicit
+  OVERDUE = 'OVERDUE'
 }
 
 export interface CreditCard {
@@ -42,7 +42,7 @@ export interface User {
   avatar?: string;
 }
 
-export type ViewState = 'DASHBOARD' | 'TRANSACTIONS' | 'CARDS';
+export type ViewState = 'DASHBOARD' | 'INCOMES' | 'EXPENSES' | 'CARDS';
 
 // Filter/Sort State
 export interface FilterState {

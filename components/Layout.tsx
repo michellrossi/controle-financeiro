@@ -1,7 +1,6 @@
 import React from 'react';
 import { ViewState, User } from '../types';
-import { LayoutDashboard, Receipt, CreditCard, LogOut, Menu, X } from 'lucide-react';
-import { StorageService } from '../services/storage';
+import { LayoutDashboard, ArrowUpCircle, ArrowDownCircle, CreditCard, LogOut, Menu, X } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,55 +13,58 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, user, onLogout }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
-  const NavItem = ({ view, label, icon: Icon }: { view: ViewState; label: string; icon: any }) => (
+  // Helper for Desktop Icons
+  const NavIcon = ({ view, icon: Icon, tooltip }: { view: ViewState; icon: any; tooltip: string }) => (
     <button
-      onClick={() => { setView(view); setIsMobileMenuOpen(false); }}
-      className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200 ${
+      onClick={() => setView(view)}
+      className={`group relative flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 ${
         currentView === view 
-          ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
-          : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+          ? 'bg-emerald-50 text-emerald-600' 
+          : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'
       }`}
+      title={tooltip}
     >
-      <Icon size={20} />
-      <span className="font-medium">{label}</span>
+      <Icon size={24} strokeWidth={currentView === view ? 2.5 : 2} />
+      {/* Tooltip */}
+      <span className="absolute left-14 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+        {tooltip}
+      </span>
     </button>
   );
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 p-6">
-        <div className="flex items-center gap-3 mb-10 px-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-lg">F</span>
+      {/* Desktop Sidebar (Icon Only) */}
+      <aside className="hidden md:flex flex-col items-center w-20 bg-white border-r border-slate-200 py-8">
+        <div className="mb-10">
+           <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
+            <span className="text-white font-bold text-xl">F</span>
           </div>
-          <span className="text-xl font-bold text-slate-800">Finanças 2026</span>
         </div>
 
-        <nav className="flex-1 space-y-2">
-          <NavItem view="DASHBOARD" label="Dashboard" icon={LayoutDashboard} />
-          <NavItem view="TRANSACTIONS" label="Transações" icon={Receipt} />
-          <NavItem view="CARDS" label="Cartões" icon={CreditCard} />
+        <nav className="flex-1 flex flex-col gap-4 w-full items-center px-2">
+          <NavIcon view="DASHBOARD" icon={LayoutDashboard} tooltip="Visão Geral" />
+          <NavIcon view="INCOMES" icon={ArrowUpCircle} tooltip="Entradas" />
+          <NavIcon view="EXPENSES" icon={ArrowDownCircle} tooltip="Saídas" />
+          <NavIcon view="CARDS" icon={CreditCard} tooltip="Cartões" />
         </nav>
 
-        <div className="pt-6 border-t border-slate-100">
-          <div className="flex items-center gap-3 px-2 mb-4">
-            <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full bg-slate-200" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">{user.name}</p>
-              <p className="text-xs text-slate-500 truncate">{user.email}</p>
-            </div>
-          </div>
-          <button onClick={onLogout} className="flex items-center gap-2 text-slate-500 hover:text-red-600 px-2 text-sm transition-colors">
-            <LogOut size={16} /> Sair
-          </button>
+        <div className="mt-auto flex flex-col gap-4 items-center w-full">
+           <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white shadow-sm" />
+           <button 
+             onClick={onLogout} 
+             className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
+             title="Sair"
+           >
+             <LogOut size={20} />
+           </button>
         </div>
       </aside>
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 w-full bg-white z-20 border-b border-slate-200 px-4 py-3 flex justify-between items-center">
+      <div className="md:hidden fixed top-0 w-full bg-white z-20 border-b border-slate-200 px-4 py-3 flex justify-between items-center shadow-sm">
          <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold">F</span>
           </div>
           <span className="font-bold text-slate-800">Finanças 2026</span>
@@ -75,9 +77,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView, 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 bg-white z-10 pt-20 px-4 flex flex-col gap-2">
-           <NavItem view="DASHBOARD" label="Dashboard" icon={LayoutDashboard} />
-           <NavItem view="TRANSACTIONS" label="Transações" icon={Receipt} />
-           <NavItem view="CARDS" label="Cartões" icon={CreditCard} />
+           <button onClick={() => { setView('DASHBOARD'); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-50 font-medium text-slate-700"><LayoutDashboard size={20}/> Visão Geral</button>
+           <button onClick={() => { setView('INCOMES'); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-50 font-medium text-slate-700"><ArrowUpCircle size={20}/> Entradas</button>
+           <button onClick={() => { setView('EXPENSES'); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-50 font-medium text-slate-700"><ArrowDownCircle size={20}/> Saídas</button>
+           <button onClick={() => { setView('CARDS'); setIsMobileMenuOpen(false); }} className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-50 font-medium text-slate-700"><CreditCard size={20}/> Cartões</button>
+           
            <div className="mt-auto mb-8 border-t pt-4">
               <button onClick={onLogout} className="flex items-center gap-3 w-full px-4 py-3 text-red-600 font-medium">
                 <LogOut size={20} /> Sair da conta

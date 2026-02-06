@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Transaction, TransactionType, TransactionStatus, INCOME_CATEGORIES, EXPENSE_CATEGORIES, CreditCard } from '../types';
-import { X, Calendar, DollarSign, CreditCard as CardIcon, Type, Layers } from 'lucide-react';
+import { Calendar, DollarSign, Type, Layers } from 'lucide-react';
+import { Modal } from './ui/Modal';
 
 interface TransactionFormProps {
   isOpen: boolean;
@@ -29,7 +30,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
       setCategory(initialData.category);
       setCardId(initialData.cardId || '');
       setStatus(initialData.status);
-      setInstallments(1); // Editing installments is complex, disabling for simplicity
+      setInstallments(1);
     } else {
       resetForm();
     }
@@ -57,7 +58,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
       date: new Date(date).toISOString(),
       type,
       category,
-      status: type === TransactionType.CARD_EXPENSE ? TransactionStatus.COMPLETED : status, // Card expenses are usually treated as "spent" on the card
+      status: type === TransactionType.CARD_EXPENSE ? TransactionStatus.COMPLETED : status,
       cardId: type === TransactionType.CARD_EXPENSE ? cardId : undefined,
     };
 
@@ -65,23 +66,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
     onClose();
   };
 
-  if (!isOpen) return null;
-
   const categories = type === TransactionType.INCOME ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-fade-in-up">
-        <div className="flex justify-between items-center p-5 border-b border-slate-100">
-          <h2 className="text-xl font-bold text-slate-800">
-            {initialData ? 'Editar Transação' : 'Nova Transação'}
-          </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
-            <X size={24} />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+    <Modal isOpen={isOpen} onClose={onClose} title={initialData ? 'Editar Transação' : 'Nova Transação'}>
+        <form onSubmit={handleSubmit} className="space-y-4">
           
           {/* Type Selection */}
           <div className="flex p-1 bg-slate-100 rounded-xl">
@@ -114,7 +103,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
                   required
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
                   placeholder="Ex: Supermercado"
                 />
               </div>
@@ -131,7 +120,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
                     required
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
                     placeholder="0,00"
                   />
                 </div>
@@ -143,7 +132,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
                     required
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
               </div>
             </div>
@@ -156,7 +145,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               >
                 {categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -168,7 +157,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
                 <select
                   value={cardId}
                   onChange={(e) => setCardId(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 >
                   {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
@@ -181,7 +170,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
              {/* Only show installments for new transactions to avoid complex edit logic */}
             {!initialData && (
               <div className="flex-1">
-                <label className="block text-xs font-semibold text-slate-500 mb-1">Parcelas (Recorrência)</label>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Parcelas</label>
                 <div className="relative">
                    <Layers className="absolute left-3 top-3 text-slate-400" size={18} />
                    <input
@@ -190,7 +179,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
                     max="48"
                     value={installments}
                     onChange={(e) => setInstallments(parseInt(e.target.value) || 1)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -204,7 +193,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
                   onClick={() => setStatus(status === TransactionStatus.COMPLETED ? TransactionStatus.PENDING : TransactionStatus.COMPLETED)}
                   className={`w-full py-2.5 rounded-xl text-sm font-medium border transition-all ${
                     status === TransactionStatus.COMPLETED 
-                      ? 'bg-green-50 text-green-700 border-green-200' 
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                       : 'bg-orange-50 text-orange-700 border-orange-200'
                   }`}
                 >
@@ -217,13 +206,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ isOpen, onClos
           <div className="pt-4">
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-200 transition-all transform active:scale-95"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-200 transition-all transform active:scale-95"
             >
               Salvar Transação
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 };
