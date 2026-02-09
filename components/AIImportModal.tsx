@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from './ui/Modal';
 import { CreditCard, Transaction, TransactionType, TransactionStatus } from '../types';
 import { AIService, AIParsedTransaction } from '../services/ai';
-import { Sparkles, Loader2, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
+import { Sparkles, Loader2, CheckCircle, AlertCircle, ArrowUp, ArrowDown } from 'lucide-react';
 import { formatCurrency } from '../services/storage';
 
 interface AIImportModalProps {
@@ -47,9 +47,15 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
       description: item.description,
       amount: item.amount,
       date: new Date(item.date).toISOString(),
-      type: TransactionType.CARD_EXPENSE,
+      // Map AI type to App type
+      type: item.type === 'INCOME' ? TransactionType.INCOME : TransactionType.CARD_EXPENSE,
       category: item.category,
       status: TransactionStatus.COMPLETED,
+      // Only attach card ID if it's a card expense. 
+      // If it's INCOME (e.g. refund/payment), we decide based on logic:
+      // Usually, refunds on cards should still be attached to the card for invoice calc,
+      // but the App's filter logic requires CARD_EXPENSE type to be summed in invoice.
+      // We will attach the cardId regardless, but the Dashboard might treat Income separately.
       cardId: selectedCardId
     }));
     
@@ -73,7 +79,7 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
              <Sparkles className="text-indigo-600 shrink-0 mt-1" size={20} />
              <div className="text-sm text-indigo-800">
                 <p className="font-bold">Como funciona?</p>
-                <p>Copie o texto da fatura (PDF ou App do banco) e cole abaixo. A Inteligência Artificial irá identificar datas, valores e categorizar automaticamente.</p>
+                <p>Copie o texto da fatura (PDF ou App do banco) e cole abaixo. A Inteligência Artificial identificará automaticamente entradas (créditos) e saídas (débitos), categorizando cada item.</p>
              </div>
           </div>
 
@@ -89,7 +95,7 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
           </div>
 
           <div>
-             <label className="block text-xs font-semibold text-slate-500 mb-1">Texto da Fatura</label>
+             <label className="block text-xs font-semibold text-slate-500 mb-1">Texto da Fatura / Extrato</label>
              <textarea 
                value={text}
                onChange={(e) => setText(e.target.value)}
@@ -122,15 +128,22 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
 
            <div className="max-h-64 overflow-y-auto border border-slate-100 rounded-xl divide-y divide-slate-100">
               {parsedData.map((t, idx) => (
-                <div key={idx} className="p-3 hover:bg-slate-50 flex justify-between items-center text-sm">
-                   <div>
-                      <p className="font-bold text-slate-700">{t.description}</p>
-                      <div className="flex gap-2 text-xs text-slate-500">
-                         <span>{t.date}</span>
-                         <span className="bg-slate-100 px-1.5 rounded">{t.category}</span>
+                <div key={idx} className="p-3 hover:bg-slate-50 flex justify-between items-center text-sm border-l-4 border-transparent hover:border-indigo-200">
+                   <div className="flex items-center gap-3">
+                      <div className={`p-1.5 rounded ${t.type === 'INCOME' ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                         {t.type === 'INCOME' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                      </div>
+                      <div>
+                          <p className="font-bold text-slate-700">{t.description}</p>
+                          <div className="flex gap-2 text-xs text-slate-500">
+                            <span>{t.date}</span>
+                            <span className="bg-slate-100 px-1.5 rounded">{t.category}</span>
+                          </div>
                       </div>
                    </div>
-                   <span className="font-bold text-slate-800">{formatCurrency(t.amount)}</span>
+                   <span className={`font-bold ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                     {t.type === 'INCOME' ? '+ ' : ''}{formatCurrency(t.amount)}
+                   </span>
                 </div>
               ))}
            </div>
