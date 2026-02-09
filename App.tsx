@@ -11,7 +11,7 @@ import { User, Transaction, ViewState, FilterState, CreditCard, TransactionType,
 import { Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { format, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Migrador } from './components/Migrador'; // Import Migrador
+import { AIImportModal } from './components/AIImportModal';
 
 function App() {
   // --- Global State ---
@@ -35,6 +35,9 @@ function App() {
   const [isListModalOpen, setIsListModalOpen] = useState(false);
   const [listModalTitle, setListModalTitle] = useState('');
   const [listModalTransactions, setListModalTransactions] = useState<Transaction[]>([]);
+
+  // UX State - AI Modal
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
 
   const [filter, setFilter] = useState<FilterState>({
     month: new Date().getMonth(),
@@ -130,6 +133,21 @@ function App() {
       }
     }
     fetchData(user.id);
+  };
+
+  const handleBatchTransactions = async (newTransactions: Transaction[]) => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      for (const t of newTransactions) {
+        await StorageService.addTransaction(user.id, t);
+      }
+      fetchData(user.id);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -355,6 +373,7 @@ function App() {
           onEditCard={(c) => { setEditingCard(c); setIsCardFormOpen(true); }}
           onDeleteCard={handleDeleteCard}
           onAddNewCard={() => { setEditingCard(null); setIsCardFormOpen(true); }}
+          onAIImport={() => setIsAIModalOpen(true)}
         />
       )}
 
@@ -381,15 +400,12 @@ function App() {
         transactions={listModalTransactions}
       />
 
-      {/* Migration Tool */}
-      {user && (
-         <Migrador 
-            userId={user.id} 
-            onMigrationComplete={() => {
-                fetchData(user.id);
-            }} 
-         />
-      )}
+      <AIImportModal 
+        isOpen={isAIModalOpen}
+        onClose={() => setIsAIModalOpen(false)}
+        cards={cards}
+        onImport={handleBatchTransactions}
+      />
 
     </Layout>
   );

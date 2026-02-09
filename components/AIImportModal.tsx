@@ -1,0 +1,156 @@
+import React, { useState } from 'react';
+import { Modal } from './ui/Modal';
+import { CreditCard, Transaction, TransactionType, TransactionStatus } from '../types';
+import { AIService, AIParsedTransaction } from '../services/ai';
+import { Sparkles, Loader2, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
+import { formatCurrency } from '../services/storage';
+
+interface AIImportModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  cards: CreditCard[];
+  onImport: (transactions: Transaction[]) => void;
+}
+
+export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, cards, onImport }) => {
+  const [step, setStep] = useState<'INPUT' | 'PREVIEW'>('INPUT');
+  const [text, setText] = useState('');
+  const [selectedCardId, setSelectedCardId] = useState(cards[0]?.id || '');
+  const [loading, setLoading] = useState(false);
+  const [parsedData, setParsedData] = useState<AIParsedTransaction[]>([]);
+  const [error, setError] = useState('');
+
+  const handleProcess = async () => {
+    if (!text.trim() || !selectedCardId) return;
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      const results = await AIService.parseStatement(text);
+      if (results.length === 0) {
+        setError('Nenhuma transação identificada. Verifique o texto copiado.');
+      } else {
+        setParsedData(results);
+        setStep('PREVIEW');
+      }
+    } catch (e) {
+      setError('Erro ao processar com IA. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirm = () => {
+    const transactions: Transaction[] = parsedData.map(item => ({
+      id: crypto.randomUUID(),
+      description: item.description,
+      amount: item.amount,
+      date: new Date(item.date).toISOString(),
+      type: TransactionType.CARD_EXPENSE,
+      category: item.category,
+      status: TransactionStatus.COMPLETED,
+      cardId: selectedCardId
+    }));
+    
+    onImport(transactions);
+    handleClose();
+  };
+
+  const handleClose = () => {
+    setText('');
+    setStep('INPUT');
+    setParsedData([]);
+    setError('');
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="Importar Extrato com IA" maxWidth="max-w-2xl">
+      {step === 'INPUT' ? (
+        <div className="space-y-4">
+          <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-start gap-3">
+             <Sparkles className="text-indigo-600 shrink-0 mt-1" size={20} />
+             <div className="text-sm text-indigo-800">
+                <p className="font-bold">Como funciona?</p>
+                <p>Copie o texto da fatura (PDF ou App do banco) e cole abaixo. A Inteligência Artificial irá identificar datas, valores e categorizar automaticamente.</p>
+             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Selecione o Cartão</label>
+            <select 
+              value={selectedCardId}
+              onChange={(e) => setSelectedCardId(e.target.value)}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+            >
+              {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+
+          <div>
+             <label className="block text-xs font-semibold text-slate-500 mb-1">Texto da Fatura</label>
+             <textarea 
+               value={text}
+               onChange={(e) => setText(e.target.value)}
+               className="w-full h-48 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-xs font-mono"
+               placeholder="Ex: 25/02 UBER *VIAGEM R$ 15,90..."
+             />
+          </div>
+
+          {error && (
+            <div className="text-rose-500 text-sm flex items-center gap-2">
+              <AlertCircle size={16} /> {error}
+            </div>
+          )}
+
+          <button 
+            onClick={handleProcess}
+            disabled={loading || !text.trim()}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? <Loader2 className="animate-spin" /> : <Sparkles size={18} />}
+            Processar Fatura
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+           <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-700">Revisão ({parsedData.length} itens)</h3>
+              <button onClick={() => setStep('INPUT')} className="text-xs text-slate-500 hover:text-indigo-600">Voltar</button>
+           </div>
+
+           <div className="max-h-64 overflow-y-auto border border-slate-100 rounded-xl divide-y divide-slate-100">
+              {parsedData.map((t, idx) => (
+                <div key={idx} className="p-3 hover:bg-slate-50 flex justify-between items-center text-sm">
+                   <div>
+                      <p className="font-bold text-slate-700">{t.description}</p>
+                      <div className="flex gap-2 text-xs text-slate-500">
+                         <span>{t.date}</span>
+                         <span className="bg-slate-100 px-1.5 rounded">{t.category}</span>
+                      </div>
+                   </div>
+                   <span className="font-bold text-slate-800">{formatCurrency(t.amount)}</span>
+                </div>
+              ))}
+           </div>
+
+           <div className="flex gap-3 pt-2">
+             <button 
+               onClick={handleClose}
+               className="flex-1 py-3 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50"
+             >
+               Cancelar
+             </button>
+             <button 
+               onClick={handleConfirm}
+               className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-200 flex items-center justify-center gap-2"
+             >
+               <CheckCircle size={18} /> Confirmar Importação
+             </button>
+           </div>
+        </div>
+      )}
+    </Modal>
+  );
+};

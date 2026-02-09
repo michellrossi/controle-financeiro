@@ -27,20 +27,18 @@ import {
 
 // Firebase Configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyC_-G-btdRLcjdE--seBNVS28Yvk-_ecI0",
-  authDomain: "app-financeiro-2026.firebaseapp.com",
-  projectId: "app-financeiro-2026",
-  storageBucket: "app-financeiro-2026.firebasestorage.app",
-  messagingSenderId: "430504885966",
-  appId: "1:430504885966:web:a6142506f5c41ff9175a9f",
-  measurementId: "G-TR9F85VDRN"
+  apiKey: "AIzaSyCe-tyLRk2tsV-_uVWhpUgIgF3b-Jz_F_0",
+  authDomain: "controle-financeiro-definitivo.firebaseapp.com",
+  projectId: "controle-financeiro-definitivo",
+  storageBucket: "controle-financeiro-definitivo.firebasestorage.app",
+  messagingSenderId: "659709682670",
+  appId: "1:659709682670:web:e4898612b3f04948e9a4ff"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const auth = getAuth(app);
-// EXPORTING DB SO MIGRADOR CAN USE IT
 export const db = getFirestore(app);
 
 // Helpers
