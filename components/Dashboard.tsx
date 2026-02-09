@@ -132,7 +132,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, filter, card
   );
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in w-full">
       {/* Top Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard 
@@ -170,7 +170,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, filter, card
       {/* Middle Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* History Chart (2/3 width) */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col min-w-0">
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col min-w-0 w-full">
            <div className="flex justify-between items-center mb-6">
              <h3 className="text-lg font-bold text-slate-800">Histórico Semestral</h3>
              <span className="text-xs px-2 py-1 bg-slate-100 rounded text-slate-500">Realizado</span>
@@ -203,7 +203,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, filter, card
         </div>
 
         {/* Category Pie Chart (1/3 width) */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col min-w-0">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col min-w-0 w-full">
            <h3 className="text-lg font-bold text-slate-800 mb-4">Gastos por Categoria</h3>
            <div className="flex-1 flex items-center justify-center relative w-full">
               <div className="w-full h-64">
@@ -241,7 +241,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, filter, card
       </div>
 
       {/* Bottom Bar Chart: Card Evolution */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 min-w-0">
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 min-w-0 w-full">
          <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-purple-100 rounded-lg text-purple-600"><CreditCardIcon size={18} /></div>

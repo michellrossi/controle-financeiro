@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from './ui/Modal';
 import { CreditCard, Transaction, TransactionType, TransactionStatus } from '../types';
 import { AIService, AIParsedTransaction } from '../services/ai';
-import { Sparkles, Loader2, CheckCircle, AlertCircle, ArrowUp, ArrowDown } from 'lucide-react';
+import { Sparkles, Loader2, CheckCircle, AlertCircle, ArrowUp, ArrowDown, Key } from 'lucide-react';
 import { formatCurrency } from '../services/storage';
 
 interface AIImportModalProps {
@@ -19,6 +19,7 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
   const [loading, setLoading] = useState(false);
   const [parsedData, setParsedData] = useState<AIParsedTransaction[]>([]);
   const [error, setError] = useState('');
+  const [needsApiKey, setNeedsApiKey] = useState(false);
 
   // Ensure a card is selected when the modal opens or cards are loaded
   useEffect(() => {
@@ -30,6 +31,25 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
       }
     }
   }, [isOpen, cards, selectedCardId]);
+
+  const handleSelectApiKey = async () => {
+    try {
+      // @ts-ignore
+      if (window.aistudio && window.aistudio.openSelectKey) {
+        // @ts-ignore
+        await window.aistudio.openSelectKey();
+        setNeedsApiKey(false);
+        setError('');
+        // Retry process immediately if text is present
+        if (text) handleProcess(); 
+      } else {
+        setError("API do Google AI Studio não disponível neste navegador. Verifique a documentação.");
+      }
+    } catch (e) {
+      console.error(e);
+      setError("Falha ao selecionar chave de API.");
+    }
+  };
 
   const handleProcess = async () => {
     console.log("Botão processar clicado. Texto length:", text.length, "CardID:", selectedCardId);
@@ -46,6 +66,7 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
     
     setLoading(true);
     setError('');
+    setNeedsApiKey(false);
     
     try {
       const results = await AIService.parseStatement(text);
@@ -58,7 +79,12 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
       }
     } catch (e: any) {
       console.error("Erro no frontend ao chamar AI:", e);
-      setError(`Erro: ${e.message || 'Falha ao processar'}`);
+      if (e.message === 'API_KEY_MISSING') {
+         setNeedsApiKey(true);
+         setError("Chave de API necessária para usar a Inteligência Artificial.");
+      } else {
+         setError(`Erro: ${e.message || 'Falha ao processar'}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -88,6 +114,7 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
     setStep('INPUT');
     setParsedData([]);
     setError('');
+    setNeedsApiKey(false);
     onClose();
   };
 
@@ -126,19 +153,32 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
           </div>
 
           {error && (
-            <div className="text-rose-500 text-sm flex items-center gap-2 bg-rose-50 p-3 rounded-lg">
-              <AlertCircle size={16} /> {error}
+            <div className="flex flex-col gap-3 bg-rose-50 p-4 rounded-lg border border-rose-100">
+              <div className="text-rose-600 text-sm flex items-center gap-2 font-medium">
+                <AlertCircle size={16} /> {error}
+              </div>
+              
+              {needsApiKey && (
+                <button 
+                  onClick={handleSelectApiKey}
+                  className="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-rose-700 transition-colors flex items-center justify-center gap-2 w-full"
+                >
+                  <Key size={16} /> Conectar Conta Google (Grátis)
+                </button>
+              )}
             </div>
           )}
 
-          <button 
-            onClick={handleProcess}
-            disabled={loading || !text.trim() || cards.length === 0}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? <Loader2 className="animate-spin" /> : <Sparkles size={18} />}
-            Processar Fatura
-          </button>
+          {!needsApiKey && (
+            <button 
+              onClick={handleProcess}
+              disabled={loading || !text.trim() || cards.length === 0}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? <Loader2 className="animate-spin" /> : <Sparkles size={18} />}
+              Processar Fatura
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-4">

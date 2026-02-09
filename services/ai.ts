@@ -14,20 +14,30 @@ export const AIService = {
   parseStatement: async (text: string): Promise<AIParsedTransaction[]> => {
     console.log("Iniciando processamento de IA...");
     
-    // Initialize client ONLY when function is called to prevent startup crashes
+    // 1. Tentar obter a chave de várias fontes possíveis
     let apiKey = '';
+    
+    // Tentativa 1: process.env (Bundlers/Node)
     try {
       // @ts-ignore
-      if (typeof process !== 'undefined' && process.env) {
-        apiKey = process.env.API_KEY || '';
+      if (typeof process !== 'undefined' && process.env?.API_KEY) {
+        // @ts-ignore
+        apiKey = process.env.API_KEY;
       }
-    } catch (e) {
-      console.warn("Erro ao acessar process.env:", e);
+    } catch (e) {}
+
+    // Tentativa 2: window.process (Shims de navegador)
+    if (!apiKey && typeof window !== 'undefined') {
+      // @ts-ignore
+      const winProcess = window.process;
+      if (winProcess?.env?.API_KEY) {
+        apiKey = winProcess.env.API_KEY;
+      }
     }
-    
+
     if (!apiKey) {
-      console.error("API Key missing (process.env.API_KEY is empty/undefined)");
-      throw new Error("Chave de API não configurada. Verifique o console.");
+      console.error("API Key não encontrada.");
+      throw new Error("API_KEY_MISSING");
     }
 
     const ai = new GoogleGenAI({ apiKey: apiKey });
