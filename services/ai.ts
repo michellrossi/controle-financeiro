@@ -1,9 +1,10 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai"; // Importação correta do SDK
 import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from "../types";
 
-// Initialize Gemini Client
-// We must use process.env.API_KEY as per system instructions
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Acessa a chave configurada no .env.local e no Vercel 
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ""; 
+
+const genAI = new GoogleGenerativeAI(API_KEY);
 
 export interface AIParsedTransaction {
   description: string;
@@ -14,12 +15,36 @@ export interface AIParsedTransaction {
 }
 
 export const AIService = {
-  // Used for both Bank Statements and Credit Card Statements
   parseStatement: async (text: string): Promise<AIParsedTransaction[]> => {
+    if (!API_KEY) {
+      throw new Error("API Key não encontrada. Verifique o seu arquivo .env.local.");
+    }
+
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Você é um assistente financeiro especialista. Analise o texto do extrato bancário/fatura e extraia as transações.
+      // Usando o modelo flash que é mais rápido e econômico 
+      const model = genAI.getGenerativeModel({
+        model: "gemini-1.5-flash",
+        generationConfig: {
+          responseMimeType: "application/json",
+          // Define a estrutura exata que a IA deve retornar 
+          responseSchema: {
+            type: SchemaType.ARRAY,
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                description: { type: SchemaType.STRING },
+                amount: { type: SchemaType.NUMBER },
+                date: { type: SchemaType.STRING },
+                category: { type: SchemaType.STRING },
+                type: { type: SchemaType.STRING, enum: ["INCOME", "EXPENSE"] }
+              },
+              required: ["description", "amount", "date", "category", "type"]
+            }
+          }
+        }
+      });
+
+      const prompt = `Você é um assistente financeiro especialista. Analise o texto do extrato bancário/fatura e extraia as transações.
         
         Categorias de Entrada (INCOME) permitidas: ${INCOME_CATEGORIES.join(", ")}.
         Categorias de Saída (EXPENSE) permitidas: ${EXPENSE_CATEGORIES.join(", ")}.
@@ -32,33 +57,19 @@ export const AIService = {
         5. Se a categoria não for óbvia, use "Outros".
         
         Texto do extrato:
-        ${text}`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                description: { type: Type.STRING },
-                amount: { type: Type.NUMBER },
-                date: { type: Type.STRING },
-                category: { type: Type.STRING },
-                type: { type: Type.STRING, enum: ["INCOME", "EXPENSE"] }
-              },
-              required: ["description", "amount", "date", "category", "type"]
-            }
-          }
-        }
-      });
+        ${text}`;
 
-      if (response.text) {
-        return JSON.parse(response.text) as AIParsedTransaction[];
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const responseText = response.text();
+
+      if (responseText) {
+        return JSON.parse(responseText) as AIParsedTransaction[];
       }
       return [];
     } catch (error) {
       console.error("AI Parsing Error:", error);
-      throw new Error("Falha ao processar o extrato com IA. Verifique se o texto está legível.");
+      throw new Error("Falha ao processar o extrato com IA. Verifique se o texto está legível e se a chave de API está correta.");
     }
   }
 };
