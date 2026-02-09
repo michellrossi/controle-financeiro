@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { db } from '../services/storage';
-import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore';
-import { Database, Loader2, AlertTriangle } from 'lucide-react';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { Database, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { TransactionType, TransactionStatus } from '../types';
 
 export const Migrador: React.FC<{ userId: string; onMigrationComplete: () => void }> = ({ userId, onMigrationComplete }) => {
@@ -34,32 +34,24 @@ export const Migrador: React.FC<{ userId: string; onMigrationComplete: () => voi
          // 1. Definição do Tipo (Type)
          let newType: TransactionType = TransactionType.EXPENSE; // Default
 
-         // Regra: Identificar Entradas
          if (oldData.type === 'income') {
              newType = TransactionType.INCOME;
          } 
-         // Regra: Identificar Despesa de Cartão (Tem cardId e NÃO é pagamento de fatura)
          else if (oldData.cardId && !oldData.isInvoicePayment) {
              newType = TransactionType.CARD_EXPENSE;
          }
-         // Regra: Identificar Despesa Comum (Type expense e sem cardId - já é o default)
          
          // 2. Definição do Status
-         // Regra: 'completed' vira 'COMPLETED', o resto 'PENDING'
          const newStatus = oldData.status === 'completed' 
             ? TransactionStatus.COMPLETED 
             : TransactionStatus.PENDING;
 
          // 3. Tratamento de Data (Date)
          let newDate = new Date().toISOString();
-         
          if (oldData.date) {
-            // Se for Timestamp do Firestore (objeto com seconds)
             if (oldData.date.seconds) {
                 newDate = new Date(oldData.date.seconds * 1000).toISOString();
-            } 
-            // Se já for string ou Date
-            else {
+            } else {
                 const parsedDate = new Date(oldData.date);
                 if (!isNaN(parsedDate.getTime())) {
                     newDate = parsedDate.toISOString();
@@ -67,8 +59,8 @@ export const Migrador: React.FC<{ userId: string; onMigrationComplete: () => voi
             }
          }
 
-         // Montar objeto novo
-         const newTransaction = {
+         // 4. Montagem Segura do Objeto (Evitando undefined)
+         const newTransaction: any = {
              userId: userId,
              description: oldData.description || 'Sem descrição',
              amount: Number(oldData.amount) || 0,
@@ -76,15 +68,21 @@ export const Migrador: React.FC<{ userId: string; onMigrationComplete: () => voi
              type: newType,
              category: oldData.category || 'Outros',
              status: newStatus,
-             // Só mantemos cardId se for despesa de cartão
-             cardId: (newType === TransactionType.CARD_EXPENSE) ? oldData.cardId : null,
-             // Tenta preservar parcelas se existirem
-             installments: oldData.installments ? {
+         };
+
+         // Adiciona cardId apenas se existir e for válido (nunca undefined)
+         if (newType === TransactionType.CARD_EXPENSE && oldData.cardId) {
+             newTransaction.cardId = oldData.cardId;
+         }
+
+         // Adiciona installments apenas se o objeto original existir
+         if (oldData.installments && oldData.installments.current && oldData.installments.total) {
+            newTransaction.installments = {
                 current: Number(oldData.installments.current),
                 total: Number(oldData.installments.total),
                 groupId: oldData.installments.groupId || crypto.randomUUID()
-             } : undefined
-         };
+            };
+         }
 
          await addDoc(newTxRef, newTransaction);
          txCount++;
@@ -101,7 +99,6 @@ export const Migrador: React.FC<{ userId: string; onMigrationComplete: () => voi
       for (const docSnapshot of cardSnap.docs) {
           const data = docSnapshot.data();
           
-          // Garante que campos numéricos sejam números
           await addDoc(newCardRef, {
               userId: userId,
               name: data.name || 'Cartão Sem Nome',
@@ -113,7 +110,7 @@ export const Migrador: React.FC<{ userId: string; onMigrationComplete: () => voi
           cardCount++;
       }
 
-      setLog(`Sucesso! ${txCount} transações convertidas e ${cardCount} cartões migrados.`);
+      setLog(`Sucesso! ${txCount} transações e ${cardCount} cartões.`);
       setStatus('success');
       
       setTimeout(() => {
@@ -128,7 +125,14 @@ export const Migrador: React.FC<{ userId: string; onMigrationComplete: () => voi
   };
 
   if (status === 'success') {
-      return null;
+      return (
+        <div className="fixed bottom-4 right-4 z-50 animate-slide-up">
+            <div className="bg-emerald-600 text-white p-4 rounded-xl shadow-2xl flex items-center gap-3">
+                <CheckCircle size={24} />
+                <span className="font-bold">Migração Concluída!</span>
+            </div>
+        </div>
+      );
   }
 
   return (
@@ -139,10 +143,10 @@ export const Migrador: React.FC<{ userId: string; onMigrationComplete: () => voi
                {status === 'loading' ? <Loader2 className="animate-spin" /> : <Database />}
             </div>
             <div>
-               <h4 className="font-bold text-sm">Migração de Dados V2</h4>
+               <h4 className="font-bold text-sm">Migração de Dados V3</h4>
                <p className="text-xs text-slate-400 mt-1">
                  {status === 'idle' 
-                    ? 'Clique para converter e importar dados antigos para o novo formato.' 
+                    ? 'Clique para corrigir e importar seus dados antigos.' 
                     : log}
                </p>
                
@@ -157,7 +161,7 @@ export const Migrador: React.FC<{ userId: string; onMigrationComplete: () => voi
 
                {status === 'error' && (
                  <div className="mt-2 flex items-center gap-2 text-rose-400 text-xs font-bold">
-                    <AlertTriangle size={14} /> Falha na migração
+                    <AlertTriangle size={14} /> Falha na migração. Tente novamente.
                  </div>
                )}
             </div>
