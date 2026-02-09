@@ -21,8 +21,7 @@ import {
   doc, 
   query, 
   where, 
-  getDocs,
-  enableIndexedDbPersistence
+  getDocs
 } from "firebase/firestore";
 
 // Firebase Configuration

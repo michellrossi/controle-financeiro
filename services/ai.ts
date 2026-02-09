@@ -1,10 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from "../types";
 
-// Initialize Gemini Client
-// We must use process.env.API_KEY as per system instructions
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export interface AIParsedTransaction {
   description: string;
   amount: number;
@@ -16,6 +12,17 @@ export interface AIParsedTransaction {
 export const AIService = {
   // Used for both Bank Statements and Credit Card Statements
   parseStatement: async (text: string): Promise<AIParsedTransaction[]> => {
+    // Initialize client ONLY when function is called to prevent startup crashes
+    // if process.env isn't immediately ready
+    const apiKey = process.env.API_KEY;
+    
+    if (!apiKey) {
+      console.error("API Key missing");
+      throw new Error("Chave de API (API_KEY) não encontrada no ambiente.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey: apiKey });
+
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
