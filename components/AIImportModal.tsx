@@ -21,6 +21,7 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
   const [error, setError] = useState('');
 
   const handleProcess = async () => {
+    console.log("Botão processar clicado. Texto length:", text.length, "CardID:", selectedCardId);
     if (!text.trim() || !selectedCardId) return;
     
     setLoading(true);
@@ -28,14 +29,16 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
     
     try {
       const results = await AIService.parseStatement(text);
+      console.log("Resultados parseados:", results);
       if (results.length === 0) {
         setError('Nenhuma transação identificada. Verifique o texto copiado.');
       } else {
         setParsedData(results);
         setStep('PREVIEW');
       }
-    } catch (e) {
-      setError('Erro ao processar com IA. Tente novamente.');
+    } catch (e: any) {
+      console.error("Erro no frontend ao chamar AI:", e);
+      setError(`Erro: ${e.message || 'Falha ao processar'}`);
     } finally {
       setLoading(false);
     }
@@ -105,7 +108,7 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
           </div>
 
           {error && (
-            <div className="text-rose-500 text-sm flex items-center gap-2">
+            <div className="text-rose-500 text-sm flex items-center gap-2 bg-rose-50 p-3 rounded-lg">
               <AlertCircle size={16} /> {error}
             </div>
           )}

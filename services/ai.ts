@@ -12,18 +12,28 @@ export interface AIParsedTransaction {
 export const AIService = {
   // Used for both Bank Statements and Credit Card Statements
   parseStatement: async (text: string): Promise<AIParsedTransaction[]> => {
+    console.log("Iniciando processamento de IA...");
+    
     // Initialize client ONLY when function is called to prevent startup crashes
-    // if process.env isn't immediately ready
-    const apiKey = process.env.API_KEY;
+    let apiKey = '';
+    try {
+      // @ts-ignore
+      if (typeof process !== 'undefined' && process.env) {
+        apiKey = process.env.API_KEY || '';
+      }
+    } catch (e) {
+      console.warn("Erro ao acessar process.env:", e);
+    }
     
     if (!apiKey) {
-      console.error("API Key missing");
-      throw new Error("Chave de API (API_KEY) não encontrada no ambiente.");
+      console.error("API Key missing (process.env.API_KEY is empty/undefined)");
+      throw new Error("Chave de API não configurada. Verifique o console.");
     }
 
     const ai = new GoogleGenAI({ apiKey: apiKey });
 
     try {
+      console.log("Enviando prompt para Gemini...");
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Você é um assistente financeiro especialista. Analise o texto do extrato bancário/fatura e extraia as transações.
@@ -59,13 +69,14 @@ export const AIService = {
         }
       });
 
+      console.log("Resposta da IA recebida");
       if (response.text) {
         return JSON.parse(response.text) as AIParsedTransaction[];
       }
       return [];
-    } catch (error) {
-      console.error("AI Parsing Error:", error);
-      throw new Error("Falha ao processar o extrato com IA. Verifique se o texto está legível.");
+    } catch (error: any) {
+      console.error("AI Parsing Error Detalhado:", error);
+      throw new Error(`Falha na IA: ${error.message || 'Erro desconhecido'}`);
     }
   }
 };
