@@ -11,6 +11,7 @@ import { User, Transaction, ViewState, FilterState, CreditCard, TransactionType,
 import { Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { format, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Migrador } from './components/Migrador'; // Import Migrador
 
 function App() {
   // --- Global State ---
@@ -123,7 +124,7 @@ function App() {
       await StorageService.updateTransaction(user.id, t);
     } else {
       const allT = generateInstallments(t, installments, amountType);
-      // Sequentially add to Firestore (or batch if needed, but simple loop is fine for < 100)
+      // Sequentially add to Firestore
       for (const tx of allT) {
         await StorageService.addTransaction(user.id, tx);
       }
@@ -176,7 +177,6 @@ function App() {
 
   const handleSortChange = (field: 'date' | 'amount') => {
     setFilter(prev => {
-      // If clicking the same field, toggle order. If new field, set to desc by default
       if (prev.sortBy === field) {
         return { ...prev, sortOrder: prev.sortOrder === 'asc' ? 'desc' : 'asc' };
       }
@@ -289,7 +289,6 @@ function App() {
           filter={filter} 
           cards={cards} 
           onViewDetails={(type) => { 
-            // Reuse logic for modal
             const targetDate = new Date(filter.year, filter.month, 1);
             let filteredT = transactions.filter(t => {
                let dateMatch = isSameMonth(new Date(t.date), targetDate);
@@ -381,6 +380,16 @@ function App() {
         title={listModalTitle}
         transactions={listModalTransactions}
       />
+
+      {/* Migration Tool */}
+      {user && (
+         <Migrador 
+            userId={user.id} 
+            onMigrationComplete={() => {
+                fetchData(user.id);
+            }} 
+         />
+      )}
 
     </Layout>
   );
