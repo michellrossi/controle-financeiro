@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from './ui/Modal';
 import { CreditCard, Transaction, TransactionType, TransactionStatus } from '../types';
 import { AIService, AIParsedTransaction } from '../services/ai';
@@ -15,14 +15,34 @@ interface AIImportModalProps {
 export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, cards, onImport }) => {
   const [step, setStep] = useState<'INPUT' | 'PREVIEW'>('INPUT');
   const [text, setText] = useState('');
-  const [selectedCardId, setSelectedCardId] = useState(cards[0]?.id || '');
+  const [selectedCardId, setSelectedCardId] = useState('');
   const [loading, setLoading] = useState(false);
   const [parsedData, setParsedData] = useState<AIParsedTransaction[]>([]);
   const [error, setError] = useState('');
 
+  // Ensure a card is selected when the modal opens or cards are loaded
+  useEffect(() => {
+    if (isOpen && cards.length > 0) {
+      // If no card is selected, or the selected card is no longer in the list (deleted)
+      const currentCardExists = cards.find(c => c.id === selectedCardId);
+      if (!selectedCardId || !currentCardExists) {
+        setSelectedCardId(cards[0].id);
+      }
+    }
+  }, [isOpen, cards, selectedCardId]);
+
   const handleProcess = async () => {
     console.log("Botão processar clicado. Texto length:", text.length, "CardID:", selectedCardId);
-    if (!text.trim() || !selectedCardId) return;
+    
+    if (!selectedCardId) {
+      setError("Selecione um cartão de crédito para continuar.");
+      return;
+    }
+    
+    if (!text.trim()) {
+      setError("Cole o texto da fatura para continuar.");
+      return;
+    }
     
     setLoading(true);
     setError('');
@@ -55,10 +75,7 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
       category: item.category,
       status: TransactionStatus.COMPLETED,
       // Only attach card ID if it's a card expense. 
-      // If it's INCOME (e.g. refund/payment), we decide based on logic:
-      // Usually, refunds on cards should still be attached to the card for invoice calc,
-      // but the App's filter logic requires CARD_EXPENSE type to be summed in invoice.
-      // We will attach the cardId regardless, but the Dashboard might treat Income separately.
+      // We will attach the cardId regardless for tracking.
       cardId: selectedCardId
     }));
     
@@ -93,6 +110,7 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
               onChange={(e) => setSelectedCardId(e.target.value)}
               className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
             >
+              {cards.length === 0 && <option value="">Nenhum cartão cadastrado</option>}
               {cards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
@@ -115,7 +133,7 @@ export const AIImportModal: React.FC<AIImportModalProps> = ({ isOpen, onClose, c
 
           <button 
             onClick={handleProcess}
-            disabled={loading || !text.trim()}
+            disabled={loading || !text.trim() || cards.length === 0}
             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? <Loader2 className="animate-spin" /> : <Sparkles size={18} />}
